@@ -82,9 +82,21 @@ public class CatchmentBasin {
 				best_response=response;
 				best_threshold=threshold;
 			}			
-	        //System.out.println(response);
+	        //System.out.println(threshold+","+response+";");
 		}		
 		return best_threshold;
+	}
+	
+	public void draw_segmentation_mask(ImageProcessor I, ImageProcessor watershed, int threshold_step, int dilate_radius, ImageProcessor output) {
+		int best_threshold = find_best_threshold(I, watershed, threshold_step, dilate_radius);
+		output.setValue(index);
+		for (int i=0;i<size();i++){
+			int x = sparse_x.get(i);
+			int y = sparse_y.get(i);
+			if (I.getPixel(x, y)>=best_threshold) {
+				output.drawPixel(x, y);
+			}		
+		}	
 	}
 	
 	public int threshold(ImageProcessor I, ImageProcessor watershed, int threshold, int dilate_radius) {
@@ -111,24 +123,44 @@ public class CatchmentBasin {
 			}		
 		}
 		int averagePixelValue_innerMask = pixelSum / numPixels;
+		/*
+        System.out.println("averagePixelValue_innerMask="+averagePixelValue_innerMask);
+        System.out.println("pixelSum="+pixelSum);
+        System.out.println("numPixels="+numPixels);
+		*/
+
 		
+        
 		// calculate boundary mask
-		byte boundary[][]= roi.clone();
+		byte boundary[][]= new byte[ dimx ][ dimy ]; 
 		for (int x=0; x<dimx; x++) {
 			for (int y=0; y<dimy; y++) {
 				if (roi[x][y]>0) { 
-					for (int d=-dilate_radius;d<=dilate_radius;d++) {
-						// bounds checking
-						if (x+d<0 || x+d>=dimx || y+d<0 || y+d>=dimy) {
-							continue;
-						}
-						if (roi[x+d][y+d]==0) {
-							boundary[x+d][y+d]=1;
+					for (int dx=-dilate_radius;dx<=dilate_radius;dx++) {
+						for (int dy=-dilate_radius;dy<=dilate_radius;dy++) {
+							// bounds checking
+							if (x+dx<0 || x+dx>=dimx || y+dy<0 || y+dy>=dimy) {
+								continue;
+							}
+							if (roi[x+dx][y+dy]==0) {
+								boundary[x+dx][y+dy]=1;
+							}
 						}
 					}
 				}			
 			}
 		}
+		
+		/*
+	    System.out.print("roi\n");
+		for (int i = 0; i < dimx; i++) {
+		    for (int j = 0; j < dimy; j++) {
+		        System.out.print(boundary[i][j] + " ");
+		    }
+		    System.out.print("\n");
+		}		
+	    System.out.print("end boundary\n");		
+	    */
 
 		// calculate average pixel intensity in boundary mask
 		int pixelSum_outer = 0;
@@ -150,12 +182,27 @@ public class CatchmentBasin {
 						continue;
 					}
 
+			        //System.out.println("x="+x_abs+", y="+y_abs+", val="+I.getPixel(x_abs, y_abs));		
+
+					
 					pixelSum_outer += I.getPixel(x_abs, y_abs);
 					numPixels_outer++;
 				}			
 			}
 		}
+		
+		
+		// edge case
+		if (numPixels_outer==0) {
+			return Integer.MIN_VALUE;
+		}
+		
 		int averagePixelValue_outerMask = pixelSum_outer / numPixels_outer;	
+		/*
+        System.out.println("averagePixelValue_outerMask="+averagePixelValue_outerMask);
+        System.out.println("pixelSum_outer="+pixelSum_outer);
+        System.out.println("numPixels_outer="+numPixels_outer);		
+		*/
 		
 		// return
 		return averagePixelValue_innerMask - averagePixelValue_outerMask;

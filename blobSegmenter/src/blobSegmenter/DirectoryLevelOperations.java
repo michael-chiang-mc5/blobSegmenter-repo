@@ -114,17 +114,27 @@ public class DirectoryLevelOperations {
         	}
         }
 
+        
+        // create empty image same size as blurred image
+        ImagePlus masks = IJ.createImage("segmentations", width, height, 1, 16);
+        
+        for (int i=1;i<(int)max_val+1;i++) {
+            System.out.println(i+"/"+max_val);
+        	catchment_basins.get(i).draw_segmentation_mask(blurred_image.getProcessor(), wi, 10, 1, masks.getProcessor());       	
+        }
+        
+        IJ.save(masks,"/Users/michaelchiang/Desktop/test.tif");
+        
         // threshold
-        //catchment_basins.get(1).threshold(blurred_image.getProcessor(), wi, 1000, 1);
-        catchment_basins.get(1).find_best_threshold(blurred_image.getProcessor(), wi, 10, 1);
-
+        //catchment_basins.get(1).threshold(blurred_image.getProcessor(), wi, 3563, 1);
+        //catchment_basins.get(1).find_best_threshold(blurred_image.getProcessor(), wi, 10, 1);
+        
+        
+        
         System.out.println("done");
         
 
-        
-        for (float i=1;i<=max_val;i++) {
-        	
-        }
+      
 		
 	}
 	
