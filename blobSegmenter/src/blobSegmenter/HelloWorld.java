@@ -1,6 +1,5 @@
 package blobSegmenter;
 
-import java.io.File;
 
 public class HelloWorld {
 	
@@ -9,7 +8,11 @@ public class HelloWorld {
         
         DirectoryLevelOperations d = new DirectoryLevelOperations();
         d.set_working_directory("/Users/michaelchiang/Desktop/projects/blobSegmenter-repo/example_working_directory");
-        d.preprocess_batch(1.0);
+        
+        double blur_sigma=1.0;
+        int threshold_step_size=10;
+        int dilate_radius=1;
+        d.preprocess_batch(blur_sigma,threshold_step_size,dilate_radius);
 
         //d.blur_batch(1.0);
 		
