@@ -101,7 +101,7 @@ public class DirectoryLevelOperations {
 	}
 	
 	// Gets proposed segmentations on a single image and saves a serialized object containing proposed segmentations
-	void proposed_segmentations(String blur_path, String watershed_path, String output_file_path, int threshold_step, int dilate_radius) {
+	void proposed_segmentations(String blur_path, String watershed_path, String output_file_path, int threshold_step_size, int dilation_radius) {
 		// return if output already exists
 		File output_file = new File(output_file_path);
 		if (output_file.exists()) {			
@@ -122,7 +122,7 @@ public class DirectoryLevelOperations {
         // Create sparse_indices, vector of integer vectors. Each integer vector is a list of pixel indices
     	Vector<CatchmentBasin> catchment_basins = new Vector<CatchmentBasin>(number_of_watershed_basins+1); // add 1 because we also record statistics for 0-basin (i.e., the boundaries)
     	for (int i=0;i<number_of_watershed_basins+1;i++) {
-    		CatchmentBasin c = new CatchmentBasin(i);
+    		CatchmentBasin c = new CatchmentBasin(i,threshold_step_size,dilation_radius,blurred_image.getProcessor(),watershed_image.getProcessor());
     		catchment_basins.addElement(c);
     	}
    	   	
@@ -134,13 +134,16 @@ public class DirectoryLevelOperations {
         	}
         }
 
+        
+        
+        
         // create empty image with same dimensions as blurred/watershed image. We will display the proposed segmentations in this image
         // This image isn't used for anything, but is nice for showing how the algorithm works
-        ImagePlus masks = IJ.createImage("segmentations", width, height, 1, 16);
-        
+        ImagePlus masks = IJ.createImage("segmentations", width, height, 1, 16);        
         for (int i=1;i<number_of_watershed_basins+1;i++) {
             System.out.println(i+"/"+number_of_watershed_basins);
-        	catchment_basins.get(i).draw_segmentation_mask(blurred_image.getProcessor(), watershed_image.getProcessor(), threshold_step, dilate_radius, masks.getProcessor());       	
+            catchment_basins.get(i).setData();
+            catchment_basins.get(i).draw_segmentation_mask(masks.getProcessor());
         }
         
         IJ.save(masks,"/Users/michaelchiang/Desktop/test.tif");

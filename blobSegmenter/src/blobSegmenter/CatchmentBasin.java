@@ -3,123 +3,225 @@ import java.util.Vector;
 
 import ij.process.ImageProcessor;
 
-
+/*
+ * This class implements functionality to:
+ *   (1) Find the best local threshold for a proposed droplet segmentation
+ */
 public class CatchmentBasin {
-	private Vector<Integer> sparse_x;
-	private Vector<Integer> sparse_y;
-	private int index;
-	private int min_x;
-	private int min_y;
-	private int max_x;
-	private int max_y;
-	private int min_pixel_val;
-	private int max_pixel_val;
 	
-	public CatchmentBasin(int index) {
-		sparse_x = new Vector<Integer>(0);
-		sparse_y = new Vector<Integer>(0);
-		this.index = index;		
-	}
+	private int index; // index of corresponding watershed basin
 	
-	public void addPixelCoodinate(int x, int y) {
-		sparse_x.add(x);
-		sparse_y.add(y);		
-	}
-
-	public int size() {
-		return sparse_x.size();
-	}
+	// statistics for watershed catchment basin
+	private Vector<Integer> basin_sparse_x; // sparse x-coordinates of basin encompassing segmentation
+	private Vector<Integer> basin_sparse_y; // sparse y-coordinates of basin encompassing segmentation
+	private int basin_min_x;				// minimum x-coordinate of basin
+	private int basin_min_y;				// minimum y-coordinate of basin
+	private int basin_max_x;				// maximum x-coordinate of basin
+	private int basin_max_y;				// maximum y-coordinate of basin	
+	private int basin_min_blurredPixelVal;  // minimum pixel value of blurred image within basin
+	private int basin_max_blurredPixelVal;  // maximum pixel value of blurred image within basin
 	
-	public void set_minmax_x() {
-		min_x = Integer.MAX_VALUE;
-		max_x = Integer.MIN_VALUE;
-		for (int i=0;i<size();i++) {
-			if (sparse_x.get(i)<min_x) {
-				min_x = sparse_x.get(i);				
-			}
-			if (sparse_x.get(i)>max_x) {
-				max_x = sparse_x.get(i);				
-			}			
-		}
-	}
+	// shared images
+	private ImageProcessor blurred_image;
+	private ImageProcessor watershed_image;
 	
-	public void set_minmax_y() {
-		min_y = Integer.MAX_VALUE;
-		max_y = Integer.MIN_VALUE;
-		for (int i=0;i<size();i++) {
-			if (sparse_y.get(i)<min_y) {
-				min_y = sparse_y.get(i);				
-			}
-			if (sparse_y.get(i)>max_y) {
-				max_y = sparse_y.get(i);				
-			}			
-		}
-	}
-
-	public void set_minmax_pixel_value(ImageProcessor I) {
-		min_pixel_val = Integer.MAX_VALUE;
-		max_pixel_val = Integer.MIN_VALUE;
-		for (int i=0;i<size();i++) {
-			int x = sparse_x.get(i);
-			int y = sparse_y.get(i);		
-			if (I.getPixel(x, y)<min_pixel_val) {
-				min_pixel_val = I.getPixel(x, y);
-			}
-			if (I.getPixel(x, y)>max_pixel_val) {
-				max_pixel_val = I.getPixel(x, y);
-			}
-		}
-	}
+	// segmentation parameters
+	private int threshold_step_size;
+	private int dilation_radius;
+	private int best_threshold;
+	private Vector<Integer> threshold_curve; // plot responses_curve vs. threshold_curve
+	private Vector<Integer> response_curve;
 	
-	public int find_best_threshold(ImageProcessor I, ImageProcessor watershed, int threshold_step, int dilate_radius) {
-		set_minmax_pixel_value(I);
+	// segmentation coordinates
+	private Vector<Integer> segmentation_full_x;
+	private Vector<Integer> segmentation_full_y;
+	private Vector<Integer> segmentation_perimeter_x;
+	private Vector<Integer> segmentation_perimeter_y;
+	
+	// features used to determine whether proposed segmentation is an actual lipid droplet
+	
+	
+	/*
+	 * Constructor:
+	 *   index: This is the index of the watershed basin we are going to work on
+	 *   watershed: This is a watershed image
+	 */
+	public CatchmentBasin(int index, int threshold_step_size, int dilation_radius, ImageProcessor blurred_image, ImageProcessor watershed_image) {
+		// set index
+		this.index = index;
 		
+		// set iterative thresholding segmentation parameters
+		this.threshold_step_size = threshold_step_size;
+		this.dilation_radius = dilation_radius;
+		
+		// initialize vectors
+		basin_sparse_x = new Vector<Integer>(0);
+		basin_sparse_y = new Vector<Integer>(0);
+		threshold_curve = new Vector<Integer>(0);
+		response_curve = new Vector<Integer>(0);
+		segmentation_full_x = new Vector<Integer>(0);
+		segmentation_full_y = new Vector<Integer>(0);
+		segmentation_perimeter_x = new Vector<Integer>(0);
+		segmentation_perimeter_y = new Vector<Integer>(0);
+
+		
+		// set images (these are shared between different self objects)
+		this.blurred_image = blurred_image;
+		this.watershed_image = watershed_image;
+	}
+	
+	/*
+	 * Add a pixel coordinate to basin coordinate storage.
+	 */
+	public void addPixelCoodinate(int x, int y) {
+		basin_sparse_x.add(x);
+		basin_sparse_y.add(y);		
+	}
+	
+	/*
+	 * 
+	 */
+	public void setData() {
+		// calculate all necessary basin statistics
+		setBasinStatistics();
+		
+		// find the threshold that best segments proposed lipid droplet
+		// This function also records threshold_curve, response_curve
+		best_threshold = find_best_threshold();
+		
+		// record full segmentation coordinates. At the same time, create mask image
+		int dimx = basin_max_x - basin_min_x + 1;
+		int dimy = basin_max_y - basin_min_y + 1;
+		byte mask[][]= new byte[ dimx ][ dimy ];		
+		for (int i=0;i<basin_sparse_x.size();i++){
+			int x = basin_sparse_x.get(i);
+			int y = basin_sparse_y.get(i);
+			if (blurred_image.getPixel(x, y)>=best_threshold) {
+				segmentation_full_x.addElement(x);
+				segmentation_full_y.addElement(y);
+				mask[x-basin_min_x][y-basin_min_y] = 1;
+			}
+		}
+		
+		// record perimeter segmentation coordinates
+		for (int x=0; x<dimx; x++) {
+			for (int y=0; y<dimy; y++) {
+				if (mask[x][y]>0) { 
+					Boolean is_perimeter_pixel = false;
+					outer_loop:
+					for (int dx=-1;dx<=1;dx++) {
+						for (int dy=-1;dy<=1;dy++) {
+							if (x+dx<0 || x+dx>=dimx || y+dy<0 || y+dy>=dimy) {
+								is_perimeter_pixel = true;
+								break outer_loop;								
+							}
+							if (mask[x+dx][y+dy]==0) {
+								is_perimeter_pixel = true;
+								break outer_loop;								
+							}
+						}
+					}
+					if (is_perimeter_pixel) {
+						segmentation_perimeter_x.addElement(basin_min_x+x);
+						segmentation_perimeter_y.addElement(basin_min_y+y);					
+					}						
+					
+				}
+				
+			}
+		}
+		
+
+	}
+	
+
+	
+	public void draw_segmentation_mask(ImageProcessor output) {
+		output.setValue(index);
+		/*
+		for (int i=0;i<basin_sparse_x.size();i++){
+			int x = basin_sparse_x.get(i);
+			int y = basin_sparse_y.get(i);
+			if (blurred_image.getPixel(x, y)>=best_threshold) {
+				output.drawPixel(x, y);
+			}		
+		}
+		*/
+		for (int i=0;i<segmentation_perimeter_x.size();i++) {
+			int x = segmentation_perimeter_x.get(i);
+			int y = segmentation_perimeter_y.get(i);
+			output.drawPixel(x, y);
+		}
+		
+	}	
+	
+	
+	
+	/*
+	 * Calculate statistics for watershed catchment basin
+	 */
+	private void setBasinStatistics() {
+		// calculate basin_min_x, basin_max_x
+		basin_min_x = Integer.MAX_VALUE;
+		basin_max_x = Integer.MIN_VALUE;
+		basin_min_y = Integer.MAX_VALUE;
+		basin_max_y = Integer.MIN_VALUE;
+		basin_min_blurredPixelVal = Integer.MAX_VALUE;
+		basin_max_blurredPixelVal = Integer.MIN_VALUE;		
+		for (int i=0;i<basin_sparse_x.size();i++) {
+			int x = basin_sparse_x.get(i);
+			int y = basin_sparse_y.get(i);
+			if (x<basin_min_x) {
+				basin_min_x = basin_sparse_x.get(i);				
+			}
+			if (x>basin_max_x) {
+				basin_max_x = basin_sparse_x.get(i);				
+			}
+			if (y<basin_min_y) {
+				basin_min_y = basin_sparse_y.get(i);				
+			}
+			if (y>basin_max_y) {
+				basin_max_y = basin_sparse_y.get(i);				
+			}
+			if (blurred_image.getPixel(x,y)<basin_min_blurredPixelVal) {
+				basin_min_blurredPixelVal = blurred_image.getPixel(x, y);
+			}
+			if (blurred_image.getPixel(x,y)>basin_max_blurredPixelVal) {
+				basin_max_blurredPixelVal = blurred_image.getPixel(x, y);
+			}			
+		}		
+	}
+	
+	private int find_best_threshold() {
 		int best_response = Integer.MIN_VALUE;
 		int best_threshold = -1;
-		for (int threshold=max_pixel_val; threshold>min_pixel_val-threshold_step;threshold-=threshold_step) {
-			int response = threshold(I,watershed,threshold,dilate_radius);
+		for (int threshold=basin_max_blurredPixelVal; threshold>basin_min_blurredPixelVal-threshold_step_size;threshold-=threshold_step_size) {
+			int response = calculate_response(threshold);
 			if (response > best_response) {
 				best_response=response;
 				best_threshold=threshold;
-			}			
-	        //System.out.println(threshold+","+response+";");
+			}
+			threshold_curve.add(threshold);
+			response_curve.add(response);
 		}		
 		return best_threshold;
-	}
-	
-	public void draw_segmentation_mask(ImageProcessor I, ImageProcessor watershed, int threshold_step, int dilate_radius, ImageProcessor output) {
-		int best_threshold = find_best_threshold(I, watershed, threshold_step, dilate_radius);
-		output.setValue(index);
-		for (int i=0;i<size();i++){
-			int x = sparse_x.get(i);
-			int y = sparse_y.get(i);
-			if (I.getPixel(x, y)>=best_threshold) {
-				output.drawPixel(x, y);
-			}		
-		}	
-	}
-	
-	public int threshold(ImageProcessor I, ImageProcessor watershed, int threshold, int dilate_radius) {
+	}	
+	private int calculate_response(int threshold) {
+		// create matrix store mask.
+		int dimx = basin_max_x - basin_min_x + 1;
+		int dimy = basin_max_y - basin_min_y + 1;
+		byte mask[][]= new byte[ dimx ][ dimy ];
 		
-		// create roi to store mask.
-		set_minmax_x();
-		set_minmax_y();
-		int dimx = max_x - min_x + 1;
-		int dimy = max_y - min_y + 1;
-		byte roi[][]= new byte[ dimx ][ dimy ]; 
-		
-		// threshold blurred pixels in basin
-		// record average pixel intensity in mask
-		// also record threshold mask
+		// threshold blurred pixels in basin, record average pixel intensity in mask, and record threshold mask
 		int pixelSum = 0;
 		int numPixels = 0;
-		for (int i=0;i<size();i++){
-			int x = sparse_x.get(i);
-			int y = sparse_y.get(i);
-			if (I.getPixel(x, y)>=threshold) {
-				pixelSum += I.getPixel(x, y);				
+		for (int i=0;i<basin_sparse_x.size();i++){
+			int x = basin_sparse_x.get(i);
+			int y = basin_sparse_y.get(i);
+			if (blurred_image.getPixel(x, y)>=threshold) {
+				pixelSum += blurred_image.getPixel(x, y);				
 				numPixels++;
-				roi[x-min_x][y-min_y] = 1;
+				mask[x-basin_min_x][y-basin_min_y] = 1;
 			}		
 		}
 		int averagePixelValue_innerMask = pixelSum / numPixels;
@@ -128,21 +230,19 @@ public class CatchmentBasin {
         System.out.println("pixelSum="+pixelSum);
         System.out.println("numPixels="+numPixels);
 		*/
-
-		
         
 		// calculate boundary mask
 		byte boundary[][]= new byte[ dimx ][ dimy ]; 
 		for (int x=0; x<dimx; x++) {
 			for (int y=0; y<dimy; y++) {
-				if (roi[x][y]>0) { 
-					for (int dx=-dilate_radius;dx<=dilate_radius;dx++) {
-						for (int dy=-dilate_radius;dy<=dilate_radius;dy++) {
+				if (mask[x][y]>0) { 
+					for (int dx=-dilation_radius;dx<=dilation_radius;dx++) {
+						for (int dy=-dilation_radius;dy<=dilation_radius;dy++) {
 							// bounds checking
 							if (x+dx<0 || x+dx>=dimx || y+dy<0 || y+dy>=dimy) {
 								continue;
 							}
-							if (roi[x+dx][y+dy]==0) {
+							if (mask[x+dx][y+dy]==0) {
 								boundary[x+dx][y+dy]=1;
 							}
 						}
@@ -162,30 +262,28 @@ public class CatchmentBasin {
 	    System.out.print("end boundary\n");		
 	    */
 
-		// calculate average pixel intensity in boundary mask
+		// calculate average pixel intensity of blurred image in boundary mask
 		int pixelSum_outer = 0;
 		int numPixels_outer = 0;
-		int widthI = I.getWidth();
-		int heightI = I.getHeight();
+		int widthI = blurred_image.getWidth();
+		int heightI = blurred_image.getHeight();
 		for (int x=0; x<dimx; x++) {
 			for (int y=0; y<dimy; y++) {
 				if (boundary[x][y]>0) {
 					
-					int x_abs = x+min_x;
-					int y_abs = y+min_y;
+					int x_abs = x+basin_min_x;
+					int y_abs = y+basin_min_y;
 
 					// bounds checking
 					if (x_abs>=widthI || y_abs>=heightI) {
 						continue;
 					}
-					if (watershed.getPixel(x_abs, y_abs)!=index && watershed.getPixel(x_abs, y_abs)!=0) {
+					if (watershed_image.getPixel(x_abs, y_abs)!=index && watershed_image.getPixel(x_abs, y_abs)!=0) {
 						continue;
 					}
 
-			        //System.out.println("x="+x_abs+", y="+y_abs+", val="+I.getPixel(x_abs, y_abs));		
-
-					
-					pixelSum_outer += I.getPixel(x_abs, y_abs);
+			        //System.out.println("x="+x_abs+", y="+y_abs+", val="+I.getPixel(x_abs, y_abs));						
+					pixelSum_outer += blurred_image.getPixel(x_abs, y_abs);
 					numPixels_outer++;
 				}			
 			}
@@ -207,7 +305,7 @@ public class CatchmentBasin {
 		// return
 		return averagePixelValue_innerMask - averagePixelValue_outerMask;
 	}
-	
+
 
 	
 }
