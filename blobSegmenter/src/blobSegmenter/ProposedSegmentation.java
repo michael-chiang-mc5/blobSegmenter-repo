@@ -9,56 +9,56 @@ import ij.process.ImageProcessor;
  * This class implements functionality to:
  *   (1) Find the best local threshold for a proposed droplet segmentation
  */
-public class CatchmentBasin implements Serializable {
+public class ProposedSegmentation implements Serializable {
 	
 	private int index; // index of corresponding watershed basin
 	
 	// statistics for watershed catchment basin
-	private Vector<Integer> basin_sparse_x; // sparse x-coordinates of basin encompassing segmentation
-	private Vector<Integer> basin_sparse_y; // sparse y-coordinates of basin encompassing segmentation
-	private int basin_min_x;				// minimum x-coordinate of basin
-	private int basin_min_y;				// minimum y-coordinate of basin
-	private int basin_max_x;				// maximum x-coordinate of basin
-	private int basin_max_y;				// maximum y-coordinate of basin	
-	private int basin_min_blurredPixelVal;  // minimum pixel value of blurred image within basin
-	private int basin_max_blurredPixelVal;  // maximum pixel value of blurred image within basin
+	private transient Vector<Integer> basin_sparse_x; // sparse x-coordinates of basin encompassing segmentation
+	private transient Vector<Integer> basin_sparse_y; // sparse y-coordinates of basin encompassing segmentation
+	private transient int basin_min_x;				// minimum x-coordinate of basin
+	private transient int basin_min_y;				// minimum y-coordinate of basin
+	private transient int basin_max_x;				// maximum x-coordinate of basin
+	private transient int basin_max_y;				// maximum y-coordinate of basin	
+	private transient int basin_min_blurredPixelVal;  // minimum pixel value of blurred image within basin
+	private transient int basin_max_blurredPixelVal;  // maximum pixel value of blurred image within basin
 	
 	// shared images
-	private ImageProcessor blurred_image;
-	private ImageProcessor watershed_image;
+	private transient ImageProcessor blurred_image;   // not serializable
+	private transient ImageProcessor watershed_image; // not serializable
 	
 	// segmentation parameters
-	private int threshold_step_size;
-	private int dilation_radius;
-	private int best_threshold;
-	private Vector<Integer> threshold_curve; // plot responses_curve vs. threshold_curve
-	private Vector<Integer> response_curve;
+	private transient int threshold_step_size;
+	private transient int dilation_radius;
+	private transient int best_threshold;
+	private transient Vector<Integer> threshold_curve; // plot responses_curve vs. threshold_curve
+	private transient Vector<Integer> response_curve;
 	
 	// segmentation coordinates
-	private Vector<Integer> segmentation_full_x;
-	private Vector<Integer> segmentation_full_y;
-	private Vector<Integer> segmentation_perimeter_x;
-	private Vector<Integer> segmentation_perimeter_y;
-	private Vector<Integer> segmentation_outerBoundary_x;
-	private Vector<Integer> segmentation_outerBoundary_y;
+	private transient Vector<Integer> segmentation_full_x;
+	private transient Vector<Integer> segmentation_full_y;
+	public Vector<Integer> segmentation_perimeter_x;
+	public Vector<Integer> segmentation_perimeter_y;
+	private transient Vector<Integer> segmentation_outerBoundary_x;
+	private transient Vector<Integer> segmentation_outerBoundary_y;
 	
 	// features used to determine whether proposed segmentation is an actual lipid droplet
 	public double[] feature_vector;
-	private String[] feature_names = {"blurred_image_prc50",    				// 0  , image level feature
+	public String[] feature_names  = {"blurred_image_prc50",    				// 0  , image level feature
 			                          "blurred_image_prc90",    				// 1  , image level feature
 			                          "blurred_image_prc_99",  					// 2  , image level feature
 			                          "segmentation_size",						// 3  , offset here
 			                          "segmentation_meanPixelValue",			// 4
 			                          "segmentation_boundaryMeanPixelValue",	// 5
 									 };
-	private int feature_offset = 3;
+	private transient int feature_offset = 3;
 	
 	/*
 	 * Constructor:
 	 *   index: This is the index of the watershed basin we are going to work on
 	 *   watershed: This is a watershed image
 	 */
-	public CatchmentBasin(int index, int threshold_step_size, int dilation_radius, ImageProcessor blurred_image, ImageProcessor watershed_image) {
+	public ProposedSegmentation(int index, int threshold_step_size, int dilation_radius, ImageProcessor blurred_image, ImageProcessor watershed_image) {
 		// set index
 		this.index = index;
 		

@@ -96,7 +96,7 @@ public class Preprocess_ extends PlugInFrame implements ActionListener {
 				if (working_directory==null) {
 					IJ.showMessage("working directory must be set");
 				} else {
-					DirectoryLevelOperations d = new DirectoryLevelOperations();
+					PreprocessingBackend d = new PreprocessingBackend();
 					d.set_working_directory(working_directory);
 					
 					

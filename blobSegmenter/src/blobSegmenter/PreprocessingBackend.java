@@ -17,12 +17,14 @@ import ij.gui.NewImage;
 // MorphoLibJ imports, see http://fiji.sc/MorphoLibJ
 import inra.ijpb.watershed.Watershed;
 
-public class DirectoryLevelOperations {
+public class PreprocessingBackend {
 	private String working_directory;
 
 	// Set working directory. Check for proper directory structure
 	void set_working_directory(String working_directory) {
 		this.working_directory = working_directory;
+	}
+	void create_working_directory_substructure() {
 		check_subfolder_exists("blurred_images");
 		check_subfolder_exists("watershed_images");
 		check_subfolder_exists("proposed_segmentations");
@@ -109,14 +111,10 @@ public class DirectoryLevelOperations {
 	void proposed_segmentations(String blur_path, String watershed_path, String output_file_path, String output_image_path, int threshold_step_size, int dilation_radius) {
 		// return if output already exists
 		File output_file = new File(output_file_path);
-		if (output_file.exists()) {			
-			return;
-		}
-		// return if image already exists
 		File output_image = new File(output_image_path);
-		if (output_image.exists()) {			
+		if (output_file.exists() && output_image.exists()) {
 			return;
-		}				
+		}		
 		
 		// Open blurred and watershed image
 		Opener opener = new Opener();
@@ -130,9 +128,9 @@ public class DirectoryLevelOperations {
         int height = watershed_image.getProcessor().getHeight();
 
         // Create sparse_indices, vector of integer vectors. Each integer vector is a list of pixel indices
-    	Vector<CatchmentBasin> catchment_basins = new Vector<CatchmentBasin>(number_of_watershed_basins+1); // add 1 because we also record statistics for 0-basin (i.e., the boundaries)
+    	Vector<ProposedSegmentation> catchment_basins = new Vector<ProposedSegmentation>(number_of_watershed_basins+1); // add 1 because we also record statistics for 0-basin (i.e., the boundaries)
     	for (int i=0;i<number_of_watershed_basins+1;i++) {
-    		CatchmentBasin c = new CatchmentBasin(i,threshold_step_size,dilation_radius,blurred_image.getProcessor(),watershed_image.getProcessor());
+    		ProposedSegmentation c = new ProposedSegmentation(i,threshold_step_size,dilation_radius,blurred_image.getProcessor(),watershed_image.getProcessor());
     		catchment_basins.addElement(c);
     	}
    	   	
@@ -145,7 +143,7 @@ public class DirectoryLevelOperations {
         }
 
         // Get image level features (50%, 90%, 99% percentile pixel intensities of image)
-        int blurred_image_features[] = CatchmentBasin.get_image_level_features(blurred_image.getProcessor());
+        int blurred_image_features[] = ProposedSegmentation.get_image_level_features(blurred_image.getProcessor());
         
         // Get prospective lipid droplet segmentations and features
         for (int i=1;i<number_of_watershed_basins+1;i++) {
@@ -161,14 +159,11 @@ public class DirectoryLevelOperations {
         }
         IJ.save(masks,output_image_path);
         
-        // store all feature vectors
-        Double[][] feature_vectors = new Double[number_of_watershed_basins][];
+        ProposedSegmentation[] feature_vectors = new ProposedSegmentation[number_of_watershed_basins+1];
         for (int i=1;i<number_of_watershed_basins+1;i++) {
-        	feature_vectors[i-1] = new Double[ catchment_basins.get(i).feature_vector.length ];
-        	for (int j=0;j<catchment_basins.get(i).feature_vector.length;j++) {
-        		feature_vectors[i-1][j] = catchment_basins.get(i).feature_vector[j];
-        	}
-        }      
+        	feature_vectors[i] = catchment_basins.get(i);
+        }
+        
         
         // save feature vectors
         serialize_object(feature_vectors, output_file_path);
