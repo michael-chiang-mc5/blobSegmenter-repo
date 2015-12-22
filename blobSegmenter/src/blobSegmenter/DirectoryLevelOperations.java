@@ -1,6 +1,10 @@
 package blobSegmenter;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.util.Vector;
 
 // ImageJ imports
@@ -22,6 +26,7 @@ public class DirectoryLevelOperations {
 		check_subfolder_exists("blurred_images");
 		check_subfolder_exists("watershed_images");
 		check_subfolder_exists("proposed_segmentations");
+		check_subfolder_exists("visualize_proposed_segmentations");
 	}
 	void check_subfolder_exists(String sub_directory) {		
 		File folder = new File(working_directory + "/" + sub_directory + "/");
@@ -40,7 +45,7 @@ public class DirectoryLevelOperations {
         for (int i=0;i<input_images.length;i++) {
             blur(working_directory+"/input_images/"+input_images[i],working_directory+"/blurred_images/"+input_images[i],blur_sigma);
             watershed(working_directory+"/blurred_images/"+input_images[i],working_directory+"/watershed_images/"+input_images[i]);
-            proposed_segmentations(working_directory+"/blurred_images/"+input_images[i],working_directory+"/watershed_images/"+input_images[i], working_directory+"/proposed_segmentations/"+input_images[i],threshold_step_size,dilate_radius);
+            proposed_segmentations(working_directory+"/blurred_images/"+input_images[i],working_directory+"/watershed_images/"+input_images[i], working_directory+"/proposed_segmentations/"+input_images[i], working_directory+"/visualize_proposed_segmentations/"+input_images[i], threshold_step_size,dilate_radius);
         }
 	}
 	String[] get_list_of_image_files(String subdirectory) {
@@ -101,12 +106,17 @@ public class DirectoryLevelOperations {
 	}
 	
 	// Gets proposed segmentations on a single image and saves a serialized object containing proposed segmentations
-	void proposed_segmentations(String blur_path, String watershed_path, String output_file_path, int threshold_step_size, int dilation_radius) {
+	void proposed_segmentations(String blur_path, String watershed_path, String output_file_path, String output_image_path, int threshold_step_size, int dilation_radius) {
 		// return if output already exists
 		File output_file = new File(output_file_path);
 		if (output_file.exists()) {			
 			return;
-		}			
+		}
+		// return if image already exists
+		File output_image = new File(output_image_path);
+		if (output_image.exists()) {			
+			return;
+		}				
 		
 		// Open blurred and watershed image
 		Opener opener = new Opener();
@@ -134,24 +144,48 @@ public class DirectoryLevelOperations {
         	}
         }
 
+        // Get image level features (50%, 90%, 99% percentile pixel intensities of image)
+        int blurred_image_features[] = CatchmentBasin.get_image_level_features(blurred_image.getProcessor());
         
-        
-        
-        // create empty image with same dimensions as blurred/watershed image. We will display the proposed segmentations in this image
-        // This image isn't used for anything, but is nice for showing how the algorithm works
-        ImagePlus masks = IJ.createImage("segmentations", width, height, 1, 16);        
+        // Get prospective lipid droplet segmentations and features
         for (int i=1;i<number_of_watershed_basins+1;i++) {
-            System.out.println(i+"/"+number_of_watershed_basins);
             catchment_basins.get(i).setData();
-            catchment_basins.get(i).draw_segmentation_mask(masks.getProcessor());
+            catchment_basins.get(i).set_image_level_features(blurred_image_features);
+            catchment_basins.get(i).set_segmentation_level_features();           
         }
         
-        IJ.save(masks,"/Users/michaelchiang/Desktop/test.tif");
+        // Create prospective segmentation image for visualization purposes. This file is not used for anything important and can be removed without affecting functionality
+        ImagePlus masks = IJ.createImage("segmentations", width, height, 1, 16);        
+        for (int i=1;i<number_of_watershed_basins+1;i++) {
+            catchment_basins.get(i).draw_segmentation_mask(masks.getProcessor());
+        }
+        IJ.save(masks,output_image_path);
         
+        // store all feature vectors
+        Double[][] feature_vectors = new Double[number_of_watershed_basins][];
+        for (int i=1;i<number_of_watershed_basins+1;i++) {
+        	feature_vectors[i-1] = new Double[ catchment_basins.get(i).feature_vector.length ];
+        	for (int j=0;j<catchment_basins.get(i).feature_vector.length;j++) {
+        		feature_vectors[i-1][j] = catchment_basins.get(i).feature_vector[j];
+        	}
+        }      
         
-
-      
-		
+        // save feature vectors
+        serialize_object(feature_vectors, output_file_path);
+	}
+	
+	void serialize_object(Object obj, String output_file_path) {
+		try {
+			FileOutputStream fileOut = new FileOutputStream(output_file_path);
+			ObjectOutputStream out = new ObjectOutputStream(fileOut);
+			out.writeObject(obj);
+			out.close();
+			fileOut.close();
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();		
+		}
 	}
 	
 }

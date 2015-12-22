@@ -1,4 +1,6 @@
 package blobSegmenter;
+import java.io.Serializable;
+import java.util.Arrays;
 import java.util.Vector;
 
 import ij.process.ImageProcessor;
@@ -7,7 +9,7 @@ import ij.process.ImageProcessor;
  * This class implements functionality to:
  *   (1) Find the best local threshold for a proposed droplet segmentation
  */
-public class CatchmentBasin {
+public class CatchmentBasin implements Serializable {
 	
 	private int index; // index of corresponding watershed basin
 	
@@ -37,9 +39,19 @@ public class CatchmentBasin {
 	private Vector<Integer> segmentation_full_y;
 	private Vector<Integer> segmentation_perimeter_x;
 	private Vector<Integer> segmentation_perimeter_y;
+	private Vector<Integer> segmentation_outerBoundary_x;
+	private Vector<Integer> segmentation_outerBoundary_y;
 	
 	// features used to determine whether proposed segmentation is an actual lipid droplet
-	
+	public double[] feature_vector;
+	private String[] feature_names = {"blurred_image_prc50",    				// 0  , image level feature
+			                          "blurred_image_prc90",    				// 1  , image level feature
+			                          "blurred_image_prc_99",  					// 2  , image level feature
+			                          "segmentation_size",						// 3  , offset here
+			                          "segmentation_meanPixelValue",			// 4
+			                          "segmentation_boundaryMeanPixelValue",	// 5
+									 };
+	private int feature_offset = 3;
 	
 	/*
 	 * Constructor:
@@ -63,7 +75,9 @@ public class CatchmentBasin {
 		segmentation_full_y = new Vector<Integer>(0);
 		segmentation_perimeter_x = new Vector<Integer>(0);
 		segmentation_perimeter_y = new Vector<Integer>(0);
-
+		segmentation_outerBoundary_x = new Vector<Integer>(0);
+		segmentation_outerBoundary_y = new Vector<Integer>(0);
+		feature_vector = new double[feature_names.length];
 		
 		// set images (these are shared between different self objects)
 		this.blurred_image = blurred_image;
@@ -126,34 +140,124 @@ public class CatchmentBasin {
 						segmentation_perimeter_y.addElement(basin_min_y+y);					
 					}						
 					
-				}
-				
+				}				
 			}
 		}
+		
+		// record outer boundary mask segmentation coordinates
+		byte boundary[][]= new byte[ dimx ][ dimy ]; 
+		for (int x=0; x<dimx; x++) {
+			for (int y=0; y<dimy; y++) {
+				if (mask[x][y]>0) { 
+					for (int dx=-dilation_radius;dx<=dilation_radius;dx++) {
+						for (int dy=-dilation_radius;dy<=dilation_radius;dy++) {
+							// bounds checking
+							if (x+dx<0 || x+dx>=dimx || y+dy<0 || y+dy>=dimy) {
+								continue;
+							}
+							if (mask[x+dx][y+dy]==0) {
+								boundary[x+dx][y+dy]=1;
+							}
+						}
+					}
+				}			
+			}
+		}
+		int widthI = blurred_image.getWidth();
+		int heightI = blurred_image.getWidth();
+		for (int x=0; x<dimx; x++) {
+			for (int y=0; y<dimy; y++) {
+				if (boundary[x][y]>0) {				
+					int x_abs = x+basin_min_x;
+					int y_abs = y+basin_min_y;
+					// bounds checking
+					if (x_abs>=widthI || y_abs>=heightI) {
+						continue;
+					}
+					if (watershed_image.getPixel(x_abs, y_abs)!=index && watershed_image.getPixel(x_abs, y_abs)!=0) {
+						continue;
+					}
+					segmentation_outerBoundary_x.addElement(x_abs);
+					segmentation_outerBoundary_y.addElement(y_abs);					
+				}			
+			}
+		}		
 		
 
 	}
 	
-
-	
 	public void draw_segmentation_mask(ImageProcessor output) {
 		output.setValue(index);
-		/*
-		for (int i=0;i<basin_sparse_x.size();i++){
-			int x = basin_sparse_x.get(i);
-			int y = basin_sparse_y.get(i);
-			if (blurred_image.getPixel(x, y)>=best_threshold) {
-				output.drawPixel(x, y);
-			}		
-		}
-		*/
 		for (int i=0;i<segmentation_perimeter_x.size();i++) {
 			int x = segmentation_perimeter_x.get(i);
 			int y = segmentation_perimeter_y.get(i);
 			output.drawPixel(x, y);
+		}	
+	}
+	
+	// TODO: make add_sparse_x into static method
+	// TODO: shape descriptors https://code.google.com/p/jfeaturelib/wiki/FeaturesOverview
+	// TODO: sift, surf features
+	public void set_image_level_features(int [] blurred_image_features) {
+		for (int i=0;i<blurred_image_features.length;i++) {
+			feature_vector[i] = blurred_image_features[i];
+		}
+	}
+
+	public void set_segmentation_level_features() {
+		int segmentation_size = basin_sparse_x.size();
+		int segmentation_meanValue = mean_pixel_intensity(segmentation_full_x, segmentation_full_y, blurred_image);
+		int segmentationBoundary_meanValue = mean_pixel_intensity(segmentation_outerBoundary_x, segmentation_outerBoundary_y, blurred_image);		
+
+		double [] segmentation_level_features = {segmentation_size,segmentation_meanValue,segmentationBoundary_meanValue};
+		for (int i=0;i<segmentation_level_features.length;i++) {
+			feature_vector[feature_offset+i] = segmentation_level_features[i];
 		}
 		
-	}	
+	}
+	
+	private int mean_pixel_intensity(Vector<Integer> x_vector, Vector<Integer> y_vector, ImageProcessor I) {
+		// bounds check
+		if (x_vector.size()==0) {
+			return 0;
+		}
+		
+		int sum=0;
+		for (int i=0;i<x_vector.size();i++) {
+			int x = x_vector.get(i);
+			int y = y_vector.get(i);
+			sum+=I.getPixel(x, y);
+		}		
+		return sum/x_vector.size();
+	}
+	
+	
+	public static int[] get_image_level_features(ImageProcessor I) {
+		// store pixel values in int[] array
+		int dimx = I.getWidth();
+		int dimy = I.getHeight();
+		int pixel_values[] = new int[dimx*dimy];	
+		int count=0;
+		for (int x=0;x<dimx;x++) {
+			for (int y=0;y<dimy;y++) {
+				pixel_values[count]=I.getPixel(x,y);
+				count++;
+			}
+		}
+
+		// sort int[] array
+	   Arrays.sort(pixel_values);
+
+	   // get 50%, 90%, 99% percentile pixel intensities
+	   int prc50 = pixel_values[(int) (0.5 * dimx*dimy)];
+	   int prc90 = pixel_values[(int) (0.5 * dimx*dimy)];
+	   int prc99 = pixel_values[(int) (0.5 * dimx*dimy)];
+	   
+	   // return
+	   int rn[] = {prc50, prc90, prc99};
+	   return rn;
+	}
+	
 	
 	
 	
@@ -225,11 +329,6 @@ public class CatchmentBasin {
 			}		
 		}
 		int averagePixelValue_innerMask = pixelSum / numPixels;
-		/*
-        System.out.println("averagePixelValue_innerMask="+averagePixelValue_innerMask);
-        System.out.println("pixelSum="+pixelSum);
-        System.out.println("numPixels="+numPixels);
-		*/
         
 		// calculate boundary mask
 		byte boundary[][]= new byte[ dimx ][ dimy ]; 
@@ -251,17 +350,6 @@ public class CatchmentBasin {
 			}
 		}
 		
-		/*
-	    System.out.print("roi\n");
-		for (int i = 0; i < dimx; i++) {
-		    for (int j = 0; j < dimy; j++) {
-		        System.out.print(boundary[i][j] + " ");
-		    }
-		    System.out.print("\n");
-		}		
-	    System.out.print("end boundary\n");		
-	    */
-
 		// calculate average pixel intensity of blurred image in boundary mask
 		int pixelSum_outer = 0;
 		int numPixels_outer = 0;
@@ -282,7 +370,6 @@ public class CatchmentBasin {
 						continue;
 					}
 
-			        //System.out.println("x="+x_abs+", y="+y_abs+", val="+I.getPixel(x_abs, y_abs));						
 					pixelSum_outer += blurred_image.getPixel(x_abs, y_abs);
 					numPixels_outer++;
 				}			
@@ -296,11 +383,6 @@ public class CatchmentBasin {
 		}
 		
 		int averagePixelValue_outerMask = pixelSum_outer / numPixels_outer;	
-		/*
-        System.out.println("averagePixelValue_outerMask="+averagePixelValue_outerMask);
-        System.out.println("pixelSum_outer="+pixelSum_outer);
-        System.out.println("numPixels_outer="+numPixels_outer);		
-		*/
 		
 		// return
 		return averagePixelValue_innerMask - averagePixelValue_outerMask;
