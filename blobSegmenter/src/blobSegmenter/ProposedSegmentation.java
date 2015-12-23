@@ -122,6 +122,7 @@ public class ProposedSegmentation implements Serializable {
 			for (int y=0; y<dimy; y++) {
 				if (mask[x][y]>0) { 
 					Boolean is_perimeter_pixel = false;
+					/*
 					outer_loop:
 					for (int dx=-1;dx<=1;dx++) {
 						for (int dy=-1;dy<=1;dy++) {
@@ -135,6 +136,12 @@ public class ProposedSegmentation implements Serializable {
 							}
 						}
 					}
+					*/
+					if (x-1<0 || x+1>=dimx || y-1<0 || y+1>=dimy) {
+						is_perimeter_pixel = true;
+					} else if (mask[x+1][y+0]==0 || mask[x+0][y+1]==0 || mask[x-1][y+0]==0 || mask[x+0][y-1]==0) {
+						is_perimeter_pixel = true;
+					}					
 					if (is_perimeter_pixel) {
 						segmentation_perimeter_x.addElement(basin_min_x+x);
 						segmentation_perimeter_y.addElement(basin_min_y+y);					
@@ -192,7 +199,7 @@ public class ProposedSegmentation implements Serializable {
 			int x = segmentation_perimeter_x.get(i);
 			int y = segmentation_perimeter_y.get(i);
 			output.drawPixel(x, y);
-		}	
+		}
 	}
 	
 	// TODO: make add_sparse_x into static method

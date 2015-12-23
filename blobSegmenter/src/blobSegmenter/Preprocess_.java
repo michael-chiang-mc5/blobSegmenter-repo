@@ -5,7 +5,6 @@ import java.awt.event.*;
 import java.io.*;
 import ij.plugin.frame.*;
 import ij.*;
-import ij.process.*;
 import ij.gui.*;
 
 import ij.io.DirectoryChooser;
@@ -18,11 +17,14 @@ public class Preprocess_ extends PlugInFrame implements ActionListener {
 	private static Frame instance;
 	
 	private String working_directory;
-	private float droplet_radius;
-	private float droplet_distance;
-
+	
+	// preprocessing parameters
+	private double blur_sigma;
+	private int threshold_step_size;
+    private int dilate_radius;
+	
 	public Preprocess_() {
-		super("Blob segmenter");
+		super("Preprocess");
 		if (instance!=null) {
 			instance.toFront();
 			return;
@@ -95,31 +97,31 @@ public class Preprocess_ extends PlugInFrame implements ActionListener {
 			} else if (command.equals("Preprocess")) {
 				if (working_directory==null) {
 					IJ.showMessage("working directory must be set");
-				} else {
-					PreprocessingBackend d = new PreprocessingBackend();
-					d.set_working_directory(working_directory);
-					
-					
+				} else {				
+					// get preprocessing parameters
 					GenericDialog gd = new GenericDialog("New Image");
-					gd.addNumericField("Droplet radius (pixels): ", droplet_radius, 2);
-					gd.addNumericField("Inter-droplet distance (pixels): ", droplet_distance, 2);
+					gd.addNumericField("blur sigma (pixels): ", blur_sigma, 2);
+					gd.addNumericField("threshold_step_size (pixels): ", threshold_step_size, 2);
+					gd.addNumericField("dilate_radius (pixels): ", dilate_radius, 2);				
 					gd.showDialog();
 					if (gd.wasCanceled()) return;
-					droplet_radius = (float)gd.getNextNumber();
-					droplet_distance = (float)gd.getNextNumber();				
+					blur_sigma = (double)gd.getNextNumber();
+					threshold_step_size = (int)gd.getNextNumber();				
+					dilate_radius = (int)gd.getNextNumber();
 					
-					blur();
+					// run preprocessing
+			        PreprocessingBackend preprocessing_backend = new PreprocessingBackend();
+			        preprocessing_backend.set_working_directory(working_directory);        
+			        preprocessing_backend.create_working_directory_substructure();
+			        preprocessing_backend.preprocess_batch(blur_sigma,threshold_step_size,dilate_radius);					
+					
 				}
 			}
 			
 			IJ.showStatus((System.currentTimeMillis()-startTime)+" milliseconds");
 		}
 		
-		void blur() {
-			float sigma = droplet_distance;
-			
-		}
-		
+	
 		
 		
 	} // Runner inner class

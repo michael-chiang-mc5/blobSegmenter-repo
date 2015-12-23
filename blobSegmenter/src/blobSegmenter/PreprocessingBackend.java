@@ -19,6 +19,7 @@ import inra.ijpb.watershed.Watershed;
 
 public class PreprocessingBackend {
 	private String working_directory;
+	private Boolean log = true;
 
 	// Set working directory. Check for proper directory structure
 	void set_working_directory(String working_directory) {
@@ -35,6 +36,13 @@ public class PreprocessingBackend {
 		if (!folder.exists()) {
 			folder.mkdirs();
 		}	
+	}
+
+	private void log(String message) {
+		if (!log) {
+			return;
+		}
+		IJ.showStatus(message);
 	}
 	
 	// Run preprocessing across all input images. Preprocessing is composed of:
