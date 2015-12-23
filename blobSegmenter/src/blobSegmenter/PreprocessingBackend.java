@@ -30,12 +30,13 @@ public class PreprocessingBackend {
 		check_subfolder_exists("watershed_images");
 		check_subfolder_exists("proposed_segmentations");
 		check_subfolder_exists("visualize_proposed_segmentations");
+		check_subfolder_exists("training_data");
 	}
-	void check_subfolder_exists(String sub_directory) {		
+	void check_subfolder_exists(String sub_directory) {
 		File folder = new File(working_directory + "/" + sub_directory + "/");
 		if (!folder.exists()) {
 			folder.mkdirs();
-		}	
+		}
 	}
 
 	private void log(String message) {
@@ -174,22 +175,10 @@ public class PreprocessingBackend {
         
         
         // save feature vectors
-        serialize_object(feature_vectors, output_file_path);
+        Util.serialize_object(feature_vectors, output_file_path);
 	}
 	
-	void serialize_object(Object obj, String output_file_path) {
-		try {
-			FileOutputStream fileOut = new FileOutputStream(output_file_path);
-			ObjectOutputStream out = new ObjectOutputStream(fileOut);
-			out.writeObject(obj);
-			out.close();
-			fileOut.close();
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();		
-		}
-	}
+
 	
 }
 

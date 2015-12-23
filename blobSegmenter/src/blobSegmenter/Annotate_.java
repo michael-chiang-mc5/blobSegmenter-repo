@@ -34,10 +34,11 @@ public class Annotate_ extends PlugInFrame implements ActionListener {
 
 		setLayout(new FlowLayout());
 		panel = new Panel();
-		panel.setLayout(new GridLayout(3, 1, 5, 5));
+		panel.setLayout(new GridLayout(4, 1, 5, 5));
 		addButton("Set workspace");		
 		addButton("Open random image");
-		addButton("Open specific image");		
+		addButton("Open specific image");
+		addButton("Save annotations");
 		add(panel);
 		
 		pack();
@@ -122,6 +123,8 @@ public class Annotate_ extends PlugInFrame implements ActionListener {
 					canvas = I.getWindow().getCanvas();
 					canvas.addMouseListener(this);
 				}
+			} else if (command.equals("Save annotations")) {
+				annotation_backend.serializeTrainingData();
 			}
 			
 			IJ.showStatus((System.currentTimeMillis()-startTime)+" milliseconds");
@@ -149,13 +152,18 @@ public class Annotate_ extends PlugInFrame implements ActionListener {
 			// e.getModifiers == 24 means option left click			
 			if (tool_id==12 && e.getModifiers()==16 ) { // positive annotation
 				annotation_backend.drawSegmentation(offscreenX,offscreenY,"green");
+				annotation_backend.removeTrainingData(offscreenX, offscreenY);
+				annotation_backend.addTrainingData(offscreenX, offscreenY, 1);
 				annotation_backend.updateAndDraw();
 			} else if (tool_id==12 && e.getModifiers()==17) { // negative annotation (shift)
 				annotation_backend.drawSegmentation(offscreenX,offscreenY,"red");
+				annotation_backend.removeTrainingData(offscreenX, offscreenY);
+				annotation_backend.addTrainingData(offscreenX, offscreenY, 0);
 				annotation_backend.updateAndDraw();				
 			} else if (tool_id==12 && e.getModifiers()==20) { // remove annotation (shift)
 				annotation_backend.drawSegmentation(offscreenX,offscreenY,"none");
-				annotation_backend.updateAndDraw();				
+				annotation_backend.removeTrainingData(offscreenX, offscreenY);
+				annotation_backend.updateAndDraw();
 			}
 
 			

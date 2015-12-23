@@ -1,9 +1,11 @@
 package blobSegmenter;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.util.LinkedList;
 
 import ij.IJ;
 import ij.ImagePlus;
@@ -13,36 +15,56 @@ import ij.process.ImageProcessor;
 
 public class AnnotationBackend {
 	private String working_directory;
+	private String name;
+	
 	private ProposedSegmentation[] proposed_segmentations;
 	private ImageProcessor input_image;
 	private ImageProcessor watershed_image;
 	private ImagePlus annotation_interface;
+	private TrainingData training_data;
+
 	
-	void set_working_directory(String working_directory) {
+	public void set_working_directory(String working_directory) {
 		this.working_directory = working_directory;
 	}
 	
-	void open(String name) {		
+	void open(String name) {
+		this.name = name;
+		
 		// deserialize data for proposed segmentations
-		proposed_segmentations = deserialize(working_directory + "/proposed_segmentations/" + name);
+		ProposedSegmentation[] klass = null;
+		proposed_segmentations = Util.deserialize(working_directory + "/proposed_segmentations/" + name, klass);
 
-		// open up input image and store as byte image
+		// open up input image and store as byte image // TODO: store as byte image to save casts
 		Opener opener = new Opener();  
 		input_image = opener.openImage(working_directory + "/input_images/" + name).getProcessor();		
 		Util.normalize_16bit_image_to_8bit_image(input_image);
 		
-		// open up watershed image
+		// open up watershed image and store
 		watershed_image = opener.openImage(working_directory + "/watershed_images/" + name).getProcessor();
-			
+	
+		// check if previous annotations exist
+		String file_path = working_directory + "/training_data/" + name;
+		File file = new File(file_path);
+		if (file.exists()) {
+			TrainingData klass2 = null;
+			training_data = Util.deserialize(file_path, klass2);
+			if (training_data == null) {
+				training_data = new TrainingData(); // user might save empty data
+			}
+		} else {
+			training_data = new TrainingData(); // empty training data if none exists
+		}
 	}
 	
 	ImagePlus display() {
 		int dimx=input_image.getWidth();
 		int dimy=input_image.getHeight();
 
-		IJ.newImage("Annotation interface", "RGB", dimx,  dimy, 1);
-		annotation_interface = WindowManager.getImage("Annotation interface");
+		IJ.newImage("Annotation interface for "+name, "RGB", dimx,  dimy, 1);
+		annotation_interface = WindowManager.getImage("Annotation interface for "+name);
 		
+		// draw base image
 		for (int x=0;x<dimx;x++) {
 			for (int y=0;y<dimy;y++) {
 				int value = input_image.getPixel(x, y);
@@ -51,18 +73,51 @@ public class AnnotationBackend {
 				annotation_interface.getProcessor().drawPixel(x, y);				
 			}
 		}
+		
+		// draw previous annotations
+		for (int i=0;i<training_data.size();i++) {
+			int watershed_index = training_data.getWatershedIndex(i);
+			int label = training_data.getLabel(i);
+			IJ.log("label="+label);
+			if (label==0) {
+				drawSegmentation(watershed_index, "red");
+			} else if (label==1) {
+				drawSegmentation(watershed_index, "green");
+			}			
+		}
+		
 		annotation_interface.updateAndDraw();
 		return annotation_interface;
 	}
 
-	void drawSegmentation(int x,int y, String color) {
+	void addTrainingData(int x,int y, int label) {
 		// get watershed index
 		int watershed_index = watershed_image.getPixel(x, y);
-		IJ.log("watershed_index = "+watershed_index);
 		if (watershed_index==0) {
 			return;
 		}
-
+		
+		// add training data
+		training_data.add(proposed_segmentations[watershed_index], label);		
+	}
+	
+	void removeTrainingData(int x,int y) {
+		// get watershed index
+		int watershed_index = watershed_image.getPixel(x, y);
+		if (watershed_index==0) {
+			return;
+		}
+		
+		// add training data
+		training_data.remove(proposed_segmentations[watershed_index]);		
+	}
+	
+	void serializeTrainingData() {
+		String output_file_path = working_directory + "/training_data/" + name;
+		Util.serialize_object(training_data, output_file_path);
+	}
+	
+	void drawSegmentation(int watershed_index, String color) {
 		// parse color
 		int rgb_color = 0;
 		Boolean is_erase = false;
@@ -89,9 +144,18 @@ public class AnnotationBackend {
 				annotation_interface.getProcessor().setValue(rgb_color);
 			}
 			annotation_interface.getProcessor().drawPixel(x_coordinate, y_coordinate);				
+		}		
+	}
+	
+	void drawSegmentation(int x,int y, String color) {
+		// get watershed index
+		int watershed_index = watershed_image.getPixel(x, y);
+		if (watershed_index==0) {
+			return;
 		}
 		
-
+		//
+		drawSegmentation(watershed_index, color);
 	}
 	
 	void updateAndDraw() {
@@ -134,6 +198,7 @@ public class AnnotationBackend {
 		IJ.save(annotation_interface,file_path);
 	}
 	
+	/*
 	public ProposedSegmentation[] deserialize(String file_path) {
 		ProposedSegmentation[] rn = null;
 		try {
@@ -152,5 +217,6 @@ public class AnnotationBackend {
 		}
 		return rn;		
 	}
+	*/
 	
 }

@@ -11,7 +11,7 @@ import ij.process.ImageProcessor;
  */
 public class ProposedSegmentation implements Serializable {
 	
-	private int index; // index of corresponding watershed basin
+	public int watershed_index; // index of corresponding watershed basin
 	
 	// statistics for watershed catchment basin
 	private transient Vector<Integer> basin_sparse_x; // sparse x-coordinates of basin encompassing segmentation
@@ -60,7 +60,7 @@ public class ProposedSegmentation implements Serializable {
 	 */
 	public ProposedSegmentation(int index, int threshold_step_size, int dilation_radius, ImageProcessor blurred_image, ImageProcessor watershed_image) {
 		// set index
-		this.index = index;
+		this.watershed_index = index;
 		
 		// set iterative thresholding segmentation parameters
 		this.threshold_step_size = threshold_step_size;
@@ -181,7 +181,7 @@ public class ProposedSegmentation implements Serializable {
 					if (x_abs>=widthI || y_abs>=heightI) {
 						continue;
 					}
-					if (watershed_image.getPixel(x_abs, y_abs)!=index && watershed_image.getPixel(x_abs, y_abs)!=0) {
+					if (watershed_image.getPixel(x_abs, y_abs)!=watershed_index && watershed_image.getPixel(x_abs, y_abs)!=0) {
 						continue;
 					}
 					segmentation_outerBoundary_x.addElement(x_abs);
@@ -194,7 +194,7 @@ public class ProposedSegmentation implements Serializable {
 	}
 	
 	public void draw_segmentation_mask(ImageProcessor output) {
-		output.setValue(index);
+		output.setValue(watershed_index);
 		for (int i=0;i<segmentation_perimeter_x.size();i++) {
 			int x = segmentation_perimeter_x.get(i);
 			int y = segmentation_perimeter_y.get(i);
@@ -373,7 +373,7 @@ public class ProposedSegmentation implements Serializable {
 					if (x_abs>=widthI || y_abs>=heightI) {
 						continue;
 					}
-					if (watershed_image.getPixel(x_abs, y_abs)!=index && watershed_image.getPixel(x_abs, y_abs)!=0) {
+					if (watershed_image.getPixel(x_abs, y_abs)!=watershed_index && watershed_image.getPixel(x_abs, y_abs)!=0) {
 						continue;
 					}
 
