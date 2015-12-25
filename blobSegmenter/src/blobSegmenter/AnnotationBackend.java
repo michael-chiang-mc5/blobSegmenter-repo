@@ -124,6 +124,8 @@ public class AnnotationBackend {
 			rgb_color = packRGB((byte)0,(byte)254,(byte)0);			
 		} else if (color.equals("blue")) {
 			rgb_color = packRGB((byte)0,(byte)0,(byte)254);			
+		} else if (color.equals("yellow")) {
+			rgb_color = packRGB((byte)254,(byte)254,(byte)0);
 		} else {
 			is_erase = true;
 		}
@@ -195,12 +197,13 @@ public class AnnotationBackend {
 		IJ.save(annotation_interface,file_path);
 	}
 	
-	void trainSVM() {
+	void trainSVM(int probability, double gamma, double nu, double C, double eps) {
         System.out.println("running predict");
 
 		// run svm and get labels
         SvmBackend svm_backend = new SvmBackend();
         svm_backend.set_working_directory(working_directory);
+        svm_backend.set_svm_parameters(probability, gamma, nu, C, eps);
         svm_backend.read_training_data(); // always read and train on all images
         svm_backend.svmTrain();
         double [] labels = svm_backend.svmPredict(proposed_segmentations);
@@ -214,7 +217,7 @@ public class AnnotationBackend {
 			if (label==0) {// TODO: change this to -1
 				drawSegmentation(watershed_index, "none");
 			} else if (label==1) {
-				drawSegmentation(watershed_index, "blue");
+				drawSegmentation(watershed_index, "yellow");
 			} else {
 				System.out.println("Error: label is not 0,1");
 			}

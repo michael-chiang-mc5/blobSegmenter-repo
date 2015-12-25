@@ -7,6 +7,7 @@ import java.util.LinkedList;
 import java.util.Random;
 
 import ij.plugin.frame.*;
+import libsvm.svm_parameter;
 import ij.*;
 import ij.gui.*;
 
@@ -29,6 +30,13 @@ public class Annotate_ extends PlugInFrame implements ActionListener {
 	
 	AnnotationBackend annotation_backend;
 	
+	// svm parameters
+	int probability = 1;
+	double gamma = 0.5;
+	double nu = 0.5;
+	double C = 100;
+	double eps = 0.001;   	
+	
 	public Annotate_() {
 		super("Annotate");
 		if (instance!=null) {
@@ -45,7 +53,7 @@ public class Annotate_ extends PlugInFrame implements ActionListener {
 		addButton("Open random image");
 		addButton("Open specific image");
 		addButton("Save annotations");
-		addButton("Train SVM and apply");
+		addButton("Train SVM and apply to image");
 		add(panel);
 		
 		random = new Random();
@@ -152,11 +160,49 @@ public class Annotate_ extends PlugInFrame implements ActionListener {
 				if (isLocked()) {return;}
 				if (!isWorkingDirectorySet()) {return;}
 				annotation_backend.serializeTrainingData();
-			} else if (command.equals("Train SVM and apply")) {
+			} else if (command.equals("Train SVM and apply to image")) {
 				if (isLocked()) {return;}
 				if (!isWorkingDirectorySet()) {return;}
+				
+				
+				// load previously used preprocessing parameters if they exist
+				File previous_parameters = new File(working_directory + "/misc/svm_parameters.config");
+				if (previous_parameters.exists()) {
+					double [] klass = null;
+					double [] previousParameters = Util.deserialize(working_directory + "/misc/svm_parameters.config", klass);
+					probability = (int)previousParameters[0];
+					gamma = (double)previousParameters[1];				
+					nu = (double)previousParameters[2];
+					C = (double)previousParameters[3];
+					eps = (double)previousParameters[4];
+				}
+				
+				// get svm parameters
+				GenericDialog gd = new GenericDialog("Svm parameters");
+				gd.addNumericField("probability: ", probability, 2);
+				gd.addNumericField("gamma: ", gamma, 2);
+				gd.addNumericField("nu: ", nu, 2);
+				gd.addNumericField("C: ", C, 2);
+				gd.addNumericField("eps: ", eps, 2);				
+				gd.showDialog();
+				if (gd.wasCanceled()) return;
+				probability = (int)gd.getNextNumber();
+				gamma = (double)gd.getNextNumber();				
+				nu = (double)gd.getNextNumber();
+				C = (double)gd.getNextNumber();
+				eps = (double)gd.getNextNumber();				
+				
+				// run svm
 				lock();
-				annotation_backend.trainSVM();
+				annotation_backend.trainSVM(probability,gamma,nu,C,eps);
+				unlock();
+				
+		        // save svm parameters
+		        double [] parameters = new double[]{probability,gamma,nu,C,eps};
+		        Util.serialize_object(parameters, working_directory+"/misc/"+"svm_parameters.config");
+		        
+		        // alert user
+				IJ.showMessage("SVM is finished");
 				unlock();				
 			}
 			

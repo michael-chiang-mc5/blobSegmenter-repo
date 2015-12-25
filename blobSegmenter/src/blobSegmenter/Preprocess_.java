@@ -113,7 +113,7 @@ public class Preprocess_ extends PlugInFrame implements ActionListener {
 					dilate_radius = (int)previousParameters[2];
 				}
 					
-				GenericDialog gd = new GenericDialog("New Image");
+				GenericDialog gd = new GenericDialog("Preprocessing parameters");
 				gd.addNumericField("blur sigma (pixels): ", blur_sigma, 2);
 				gd.addNumericField("threshold_step_size (pixels): ", threshold_step_size, 2);
 				gd.addNumericField("dilate_radius (pixels): ", dilate_radius, 2);
