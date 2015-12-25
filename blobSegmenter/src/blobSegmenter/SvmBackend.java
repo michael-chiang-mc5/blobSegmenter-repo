@@ -3,9 +3,6 @@ package blobSegmenter;
 import java.io.File;
 import java.util.LinkedList;
 
-import ij.IJ;
-import ij.ImagePlus;
-import ij.process.ImageProcessor;
 import libsvm.*;
 
 public class SvmBackend {
@@ -34,21 +31,19 @@ public class SvmBackend {
 	}
 	
 
-	// TODO: to filter by extension:
-	// http://stackoverflow.com/questions/19190584/how-to-loop-through-all-the-files-in-a-folder-if-the-names-of-the-files-are-unk
 	public void read_training_data() {
 		labels = new LinkedList<Integer>(); // 0 for negative annotation, 1 for positive annotation TODO: change to -1, 1
 		feature_vectors = new LinkedList<double[]>();
 		File folder = new File(working_directory + "/training_data/");		
 		for(File child : folder.listFiles()) {
-			System.out.println(child.getAbsolutePath());
+		    if (!child.getAbsolutePath().endsWith(".tif")) {
+		        continue;
+		    }						
 			TrainingData klass = null;
 			TrainingData training_data = Util.deserialize(child.getAbsolutePath(), klass);
 			for (int i=0;i<training_data.size();i++) {
 				labels.add(training_data.getLabel(i));
 				feature_vectors.add(training_data.getFeatureVector(i));
-				if (i==0)
-					System.out.println("1="+training_data.getFeatureVector(i)[5]);
 			}			
 		}
 		

@@ -1,7 +1,5 @@
 package blobSegmenter;
 
-import ij.IJ;
-import ij.ImagePlus;
 
 public class HelloWorld {
 	

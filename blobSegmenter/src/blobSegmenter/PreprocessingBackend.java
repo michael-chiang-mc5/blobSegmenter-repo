@@ -1,10 +1,6 @@
 package blobSegmenter;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.util.Vector;
 
 // ImageJ imports
@@ -19,7 +15,6 @@ import inra.ijpb.watershed.Watershed;
 
 public class PreprocessingBackend {
 	private String working_directory;
-	private Boolean log = true;
 
 	// Set working directory. Check for proper directory structure
 	void set_working_directory(String working_directory) {
@@ -42,13 +37,6 @@ public class PreprocessingBackend {
 		}
 	}
 
-	private void log(String message) {
-		if (!log) {
-			return;
-		}
-		IJ.showStatus(message);
-	}
-	
 	// Run preprocessing across all input images. Preprocessing is composed of:
 	//   (1) blurring by blur_sigma
 	//   (2) running watershed on blurred image

@@ -1,11 +1,6 @@
 package blobSegmenter;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.util.LinkedList;
 
 import ij.IJ;
 import ij.ImagePlus;

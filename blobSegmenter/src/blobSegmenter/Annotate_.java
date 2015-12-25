@@ -13,6 +13,8 @@ import ij.io.DirectoryChooser;
 	Interactive pipeline to run blob segmenter algorithm
 */
 public class Annotate_ extends PlugInFrame implements ActionListener {
+
+	private static final long serialVersionUID = 1L;
 	private Panel panel;
 	private static Frame instance;
 	
