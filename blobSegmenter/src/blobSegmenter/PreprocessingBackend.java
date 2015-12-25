@@ -127,17 +127,17 @@ public class PreprocessingBackend {
         int height = watershed_image.getProcessor().getHeight();
 
         // Create sparse_indices, vector of integer vectors. Each integer vector is a list of pixel indices
-    	Vector<ProposedSegmentation> catchment_basins = new Vector<ProposedSegmentation>(number_of_watershed_basins+1); // add 1 because we also record statistics for 0-basin (i.e., the boundaries)
+    	Vector<ProposedSegmentation> proposed_segmentations = new Vector<ProposedSegmentation>(number_of_watershed_basins+1); // add 1 because we also record statistics for 0-basin (i.e., the boundaries)
     	for (int i=0;i<number_of_watershed_basins+1;i++) {
     		ProposedSegmentation c = new ProposedSegmentation(i,threshold_step_size,dilation_radius,blurred_image.getProcessor(),watershed_image.getProcessor());
-    		catchment_basins.addElement(c);
+    		proposed_segmentations.addElement(c);
     	}
    	   	
     	// Record the coordinates that compose each watershed basin
         for (int x=0;x<width;x++) {
         	for (int y=0;y<height;y++) {
         		int pixelValue = watershed_image.getProcessor().getPixel(x,y);
-        		catchment_basins.get(pixelValue).addPixelCoodinate(x, y);
+        		proposed_segmentations.get(pixelValue).addPixelCoodinate(x, y);
         	}
         }
 
@@ -146,21 +146,21 @@ public class PreprocessingBackend {
         
         // Get prospective lipid droplet segmentations and features
         for (int i=1;i<number_of_watershed_basins+1;i++) {
-            catchment_basins.get(i).setData();
-            catchment_basins.get(i).set_image_level_features(blurred_image_features);
-            catchment_basins.get(i).set_segmentation_level_features();           
+            proposed_segmentations.get(i).setData();
+            proposed_segmentations.get(i).set_image_level_features(blurred_image_features);
+            proposed_segmentations.get(i).set_segmentation_level_features();           
         }
         
         // Create prospective segmentation image for visualization purposes. This file is not used for anything important and can be removed without affecting functionality
         ImagePlus masks = IJ.createImage("segmentations", width, height, 1, 16);
         for (int i=1;i<number_of_watershed_basins+1;i++) {
-            catchment_basins.get(i).draw_segmentation_mask(masks.getProcessor(),1);
+            proposed_segmentations.get(i).draw_segmentation_mask(masks.getProcessor(),1);
         }
         IJ.save(masks,output_image_path);
         
         ProposedSegmentation[] feature_vectors = new ProposedSegmentation[number_of_watershed_basins+1];
         for (int i=1;i<number_of_watershed_basins+1;i++) {
-        	feature_vectors[i] = catchment_basins.get(i);
+        	feature_vectors[i] = proposed_segmentations.get(i);
         }
         
         

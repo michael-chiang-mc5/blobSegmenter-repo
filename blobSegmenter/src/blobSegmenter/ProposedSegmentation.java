@@ -106,8 +106,8 @@ public class ProposedSegmentation implements Serializable {
 		best_threshold = find_best_threshold();
 		
 		// record full segmentation coordinates. At the same time, create mask image
-		int dimx = basin_max_x - basin_min_x + 1;
-		int dimy = basin_max_y - basin_min_y + 1;
+		int dimx = basin_max_x - basin_min_x + 1 +2; //add two so that we can include watershed boundary in segmentation boundary
+		int dimy = basin_max_y - basin_min_y + 1 +2;
 		byte mask[][]= new byte[ dimx ][ dimy ];		
 		for (int i=0;i<basin_sparse_x.size();i++){
 			int x = basin_sparse_x.get(i);
@@ -115,7 +115,7 @@ public class ProposedSegmentation implements Serializable {
 			if (blurred_image.getPixel(x, y)>=best_threshold) {
 				segmentation_full_x.addElement(x);
 				segmentation_full_y.addElement(y);
-				mask[x-basin_min_x][y-basin_min_y] = 1;
+				mask[x-basin_min_x+1][y-basin_min_y+1] = 1; // add one because of padding
 			}
 		}
 		
@@ -124,29 +124,14 @@ public class ProposedSegmentation implements Serializable {
 			for (int y=0; y<dimy; y++) {
 				if (mask[x][y]>0) { 
 					Boolean is_perimeter_pixel = false;
-					/*
-					outer_loop:
-					for (int dx=-1;dx<=1;dx++) {
-						for (int dy=-1;dy<=1;dy++) {
-							if (x+dx<0 || x+dx>=dimx || y+dy<0 || y+dy>=dimy) {
-								is_perimeter_pixel = true;
-								break outer_loop;								
-							}
-							if (mask[x+dx][y+dy]==0) {
-								is_perimeter_pixel = true;
-								break outer_loop;								
-							}
-						}
-					}
-					*/
 					if (x-1<0 || x+1>=dimx || y-1<0 || y+1>=dimy) {
 						is_perimeter_pixel = true;
 					} else if (mask[x+1][y+0]==0 || mask[x+0][y+1]==0 || mask[x-1][y+0]==0 || mask[x+0][y-1]==0) {
 						is_perimeter_pixel = true;
 					}					
 					if (is_perimeter_pixel) {
-						segmentation_perimeter_x.addElement(basin_min_x+x);
-						segmentation_perimeter_y.addElement(basin_min_y+y);					
+						segmentation_perimeter_x.addElement(basin_min_x+x-1); // subtract one because of padding
+						segmentation_perimeter_y.addElement(basin_min_y+y-1);					
 					}						
 					
 				}				
@@ -177,8 +162,8 @@ public class ProposedSegmentation implements Serializable {
 		for (int x=0; x<dimx; x++) {
 			for (int y=0; y<dimy; y++) {
 				if (boundary[x][y]>0) {				
-					int x_abs = x+basin_min_x;
-					int y_abs = y+basin_min_y;
+					int x_abs = x+basin_min_x-1; // subtract one because of padding
+					int y_abs = y+basin_min_y-1;
 					// bounds checking
 					if (x_abs>=widthI || y_abs>=heightI) {
 						continue;
@@ -225,12 +210,7 @@ public class ProposedSegmentation implements Serializable {
 		
 	}
 	
-	private int mean_pixel_intensity(Vector<Integer> x_vector, Vector<Integer> y_vector, ImageProcessor I) {
-		// bounds check
-		if (x_vector.size()==0) {
-			return 0;
-		}
-		
+	private int mean_pixel_intensity(Vector<Integer> x_vector, Vector<Integer> y_vector, ImageProcessor I) {		
 		int sum=0;
 		for (int i=0;i<x_vector.size();i++) {
 			int x = x_vector.get(i);
@@ -321,8 +301,8 @@ public class ProposedSegmentation implements Serializable {
 	}	
 	private int calculate_response(int threshold) {
 		// create matrix store mask.
-		int dimx = basin_max_x - basin_min_x + 1;
-		int dimy = basin_max_y - basin_min_y + 1;
+		int dimx = basin_max_x - basin_min_x + 1 + 2; // add 2 so that we are guarenteed to look at 0 boundary 
+		int dimy = basin_max_y - basin_min_y + 1 + 2;
 		byte mask[][]= new byte[ dimx ][ dimy ];
 		
 		// threshold blurred pixels in basin, record average pixel intensity in mask, and record threshold mask
@@ -334,7 +314,7 @@ public class ProposedSegmentation implements Serializable {
 			if (blurred_image.getPixel(x, y)>=threshold) {
 				pixelSum += blurred_image.getPixel(x, y);				
 				numPixels++;
-				mask[x-basin_min_x][y-basin_min_y] = 1;
+				mask[x-basin_min_x+1][y-basin_min_y+1] = 1;
 			}		
 		}
 		int averagePixelValue_innerMask = pixelSum / numPixels;
@@ -368,8 +348,8 @@ public class ProposedSegmentation implements Serializable {
 			for (int y=0; y<dimy; y++) {
 				if (boundary[x][y]>0) {
 					
-					int x_abs = x+basin_min_x;
-					int y_abs = y+basin_min_y;
+					int x_abs = x+basin_min_x-1; // minus 1 because we padded by two so we can look at 0 pixels
+					int y_abs = y+basin_min_y-1;
 
 					// bounds checking
 					if (x_abs>=widthI || y_abs>=heightI) {
@@ -385,11 +365,6 @@ public class ProposedSegmentation implements Serializable {
 			}
 		}
 		
-		
-		// edge case
-		if (numPixels_outer==0) {
-			return Integer.MIN_VALUE;
-		}
 		
 		int averagePixelValue_outerMask = pixelSum_outer / numPixels_outer;	
 		

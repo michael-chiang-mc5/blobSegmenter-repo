@@ -164,7 +164,9 @@ public class Annotate_ extends PlugInFrame implements ActionListener {
 				if (isLocked()) {return;}
 				if (!isWorkingDirectorySet()) {return;}
 				
-				
+				// save current annotations
+				annotation_backend.serializeTrainingData();
+
 				// load previously used preprocessing parameters if they exist
 				File previous_parameters = new File(working_directory + "/misc/svm_parameters.config");
 				if (previous_parameters.exists()) {
