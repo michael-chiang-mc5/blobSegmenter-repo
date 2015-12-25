@@ -8,6 +8,8 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
+import ij.ImagePlus;
+import ij.io.Opener;
 import ij.process.ImageProcessor;
 
 public class Util {
@@ -58,6 +60,15 @@ public class Util {
 		} catch (ClassNotFoundException e) {
 			e.printStackTrace();
 		}
+		return rn;
+	}
+	
+	public static int[] get_image_dimensions(String file_path) {
+		Opener opener = new Opener();  
+		ImagePlus I = opener.openImage(file_path);
+		int dimx = I.getProcessor().getWidth();
+		int dimy = I.getProcessor().getHeight();
+		int [] rn = new int[]{dimx,dimy};
 		return rn;
 	}
 	

@@ -19,7 +19,7 @@ public class Annotate_ extends PlugInFrame implements ActionListener {
 	private String working_directory;
 	private String image_name;
 
-	private ImageCanvas canvas;
+	private ImageCanvas canvas = null;
 
 	AnnotationBackend annotation_backend;
 	
@@ -34,11 +34,12 @@ public class Annotate_ extends PlugInFrame implements ActionListener {
 
 		setLayout(new FlowLayout());
 		panel = new Panel();
-		panel.setLayout(new GridLayout(4, 1, 5, 5));
+		panel.setLayout(new GridLayout(5, 1, 5, 5));
 		addButton("Set workspace");		
 		addButton("Open random image");
 		addButton("Open specific image");
 		addButton("Save annotations");
+		addButton("Train SVM and apply");
 		add(panel);
 		
 		pack();
@@ -94,15 +95,18 @@ public class Annotate_ extends PlugInFrame implements ActionListener {
 			IJ.showStatus(command + "...");
 			long startTime = System.currentTimeMillis();
 			if (command.equals("Set workspace")) {
+				if (isLocked()) {return;}
 				DirectoryChooser d = new DirectoryChooser("Choose working directory");
 				working_directory = d.getDirectory();
 			} else if (command.equals("Open random image")) {
+				if (isLocked()) {return;}
 				if (working_directory==null) {
 					IJ.showMessage("working directory must be set");
 				} else {
 					
 				}
 			} else if (command.equals("Open specific image")) {
+				if (isLocked()) {return;}
 				working_directory="/Users/michaelchiang/Desktop/projects/blobSegmenter-repo/example_working_directory/";
 				if (working_directory==null) {
 					IJ.showMessage("working directory must be set");
@@ -124,10 +128,29 @@ public class Annotate_ extends PlugInFrame implements ActionListener {
 					canvas.addMouseListener(this);
 				}
 			} else if (command.equals("Save annotations")) {
+				if (isLocked()) {return;}				
 				annotation_backend.serializeTrainingData();
+			} else if (command.equals("Train SVM and apply")) {
+				if (isLocked()) {return;}
+				ImagePlus I = canvas.getImage();
+				I.lock();
+				annotation_backend.trainSVM();
+				I.unlock();				
 			}
 			
 			IJ.showStatus((System.currentTimeMillis()-startTime)+" milliseconds");
+		}
+		
+		public Boolean isLocked() {
+			if (canvas==null) {
+				return false;
+			}
+			ImagePlus I = canvas.getImage();
+			if (I.isLocked()) {
+				IJ.showMessage("Wait until image is unlocked");
+				return true;
+			}
+			return false;
 		}
 		
 		
@@ -151,16 +174,19 @@ public class Annotate_ extends PlugInFrame implements ActionListener {
 			// e.getModifiers == 20 means command left click
 			// e.getModifiers == 24 means option left click			
 			if (tool_id==12 && e.getModifiers()==16 ) { // positive annotation
+				if (isLocked()) {return;}
 				annotation_backend.drawSegmentation(offscreenX,offscreenY,"green");
 				annotation_backend.removeTrainingData(offscreenX, offscreenY);
 				annotation_backend.addTrainingData(offscreenX, offscreenY, 1);
 				annotation_backend.updateAndDraw();
 			} else if (tool_id==12 && e.getModifiers()==17) { // negative annotation (shift)
+				if (isLocked()) {return;}
 				annotation_backend.drawSegmentation(offscreenX,offscreenY,"red");
 				annotation_backend.removeTrainingData(offscreenX, offscreenY);
 				annotation_backend.addTrainingData(offscreenX, offscreenY, 0);
 				annotation_backend.updateAndDraw();				
 			} else if (tool_id==12 && e.getModifiers()==20) { // remove annotation (shift)
+				if (isLocked()) {return;}
 				annotation_backend.drawSegmentation(offscreenX,offscreenY,"none");
 				annotation_backend.removeTrainingData(offscreenX, offscreenY);
 				annotation_backend.updateAndDraw();

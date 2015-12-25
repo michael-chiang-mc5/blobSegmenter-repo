@@ -11,6 +11,8 @@ import ij.process.ImageProcessor;
  */
 public class ProposedSegmentation implements Serializable {
 	
+	private static final long serialVersionUID = 1L;
+
 	public int watershed_index; // index of corresponding watershed basin
 	
 	// statistics for watershed catchment basin
@@ -193,8 +195,8 @@ public class ProposedSegmentation implements Serializable {
 
 	}
 	
-	public void draw_segmentation_mask(ImageProcessor output) {
-		output.setValue(watershed_index);
+	public void draw_segmentation_mask(ImageProcessor output, int value) {
+		output.setValue(value);
 		for (int i=0;i<segmentation_perimeter_x.size();i++) {
 			int x = segmentation_perimeter_x.get(i);
 			int y = segmentation_perimeter_y.get(i);
@@ -257,8 +259,8 @@ public class ProposedSegmentation implements Serializable {
 
 	   // get 50%, 90%, 99% percentile pixel intensities
 	   int prc50 = pixel_values[(int) (0.5 * dimx*dimy)];
-	   int prc90 = pixel_values[(int) (0.5 * dimx*dimy)];
-	   int prc99 = pixel_values[(int) (0.5 * dimx*dimy)];
+	   int prc90 = pixel_values[(int) (0.9 * dimx*dimy)];
+	   int prc99 = pixel_values[(int) (0.99 * dimx*dimy)];
 	   
 	   // return
 	   int rn[] = {prc50, prc90, prc99};

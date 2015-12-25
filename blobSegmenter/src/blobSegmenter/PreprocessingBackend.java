@@ -31,6 +31,9 @@ public class PreprocessingBackend {
 		check_subfolder_exists("proposed_segmentations");
 		check_subfolder_exists("visualize_proposed_segmentations");
 		check_subfolder_exists("training_data");
+		check_subfolder_exists("misc");
+		check_subfolder_exists("visualize_final_segmentations");
+		check_subfolder_exists("final_segmentations");
 	}
 	void check_subfolder_exists(String sub_directory) {
 		File folder = new File(working_directory + "/" + sub_directory + "/");
@@ -162,9 +165,9 @@ public class PreprocessingBackend {
         }
         
         // Create prospective segmentation image for visualization purposes. This file is not used for anything important and can be removed without affecting functionality
-        ImagePlus masks = IJ.createImage("segmentations", width, height, 1, 16);        
+        ImagePlus masks = IJ.createImage("segmentations", width, height, 1, 16);
         for (int i=1;i<number_of_watershed_basins+1;i++) {
-            catchment_basins.get(i).draw_segmentation_mask(masks.getProcessor());
+            catchment_basins.get(i).draw_segmentation_mask(masks.getProcessor(),1);
         }
         IJ.save(masks,output_image_path);
         

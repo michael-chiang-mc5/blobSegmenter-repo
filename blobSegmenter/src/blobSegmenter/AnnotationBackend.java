@@ -117,6 +117,8 @@ public class AnnotationBackend {
 		Util.serialize_object(training_data, output_file_path);
 	}
 	
+	// color = "red", "green", "blue"
+	// if not one of the three, draws in background color
 	void drawSegmentation(int watershed_index, String color) {
 		// parse color
 		int rgb_color = 0;
@@ -198,25 +200,47 @@ public class AnnotationBackend {
 		IJ.save(annotation_interface,file_path);
 	}
 	
-	/*
-	public ProposedSegmentation[] deserialize(String file_path) {
-		ProposedSegmentation[] rn = null;
-		try {
-			FileInputStream fileIn = new FileInputStream(file_path);
-			ObjectInputStream in = new ObjectInputStream(fileIn);
-			rn = (ProposedSegmentation[]) in.readObject();
-			in.close();
-			fileIn.close();
-			return rn;
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (ClassNotFoundException e) {
-			e.printStackTrace();
+	void trainSVM() {
+        System.out.println("running predict");
+
+		// run svm and get labels
+        SvmBackend svm_backend = new SvmBackend();
+        svm_backend.set_working_directory(working_directory);
+        svm_backend.read_training_data(); // always read and train on all images
+        svm_backend.svmTrain();
+        double [] labels = svm_backend.svmPredict(proposed_segmentations);
+
+        // draw classifications
+        System.out.println("drawing classification");
+
+		for (int i=1;i<labels.length;i++) {			
+			int watershed_index = proposed_segmentations[i].watershed_index;
+			double label = labels[i];
+			if (label==0) {// TODO: change this to -1
+				drawSegmentation(watershed_index, "none");
+			} else if (label==1) {
+				drawSegmentation(watershed_index, "blue");
+			} else {
+				System.out.println("Error: label is not 0,1");
+			}
 		}
-		return rn;		
+		
+        // draw annotations (overwriting classification)
+        System.out.println("drawing annotation");
+		for (int i=0;i<training_data.size();i++) {
+			int watershed_index = training_data.getWatershedIndex(i);
+			int label = training_data.getLabel(i);
+			if (label==0) {
+				drawSegmentation(watershed_index, "red");
+			} else if (label==1) {
+				drawSegmentation(watershed_index, "green");
+			}			
+		}
+        System.out.println("done with drawing");
+		updateAndDraw();
+		
+        
+		
 	}
-	*/
 	
 }

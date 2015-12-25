@@ -4,6 +4,8 @@ import java.io.Serializable;
 import java.util.LinkedList;
 
 public class TrainingData implements Serializable {
+	private static final long serialVersionUID = 1L;
+	
 	private LinkedList<Integer> labels; // 0 for negative annotation, 1 for positive annotation
 	private LinkedList<double[]> feature_vectors; //
 	private LinkedList<Integer> watershed_index; // 
@@ -54,6 +56,10 @@ public class TrainingData implements Serializable {
 	
 	public int getLabel(int i) {
 		return labels.get(i);
+	}
+	
+	public double[] getFeatureVector(int i) {
+		return feature_vectors.get(i);
 	}
 	
 	
