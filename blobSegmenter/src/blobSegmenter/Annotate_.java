@@ -3,6 +3,9 @@ package blobSegmenter;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
+import java.util.LinkedList;
+import java.util.Random;
+
 import ij.plugin.frame.*;
 import ij.*;
 import ij.gui.*;
@@ -17,12 +20,13 @@ public class Annotate_ extends PlugInFrame implements ActionListener {
 	private static final long serialVersionUID = 1L;
 	private Panel panel;
 	private static Frame instance;
+	private Random random;
 	
 	private String working_directory;
 	private String image_name;
 
 	private ImageCanvas canvas = null;
-
+	
 	AnnotationBackend annotation_backend;
 	
 	public Annotate_() {
@@ -43,6 +47,8 @@ public class Annotate_ extends PlugInFrame implements ActionListener {
 		addButton("Save annotations");
 		addButton("Train SVM and apply");
 		add(panel);
+		
+		random = new Random();
 		
 		pack();
 		GUI.center(this);
@@ -102,58 +108,71 @@ public class Annotate_ extends PlugInFrame implements ActionListener {
 				working_directory = d.getDirectory();
 			} else if (command.equals("Open random image")) {
 				if (isLocked()) {return;}
-				if (working_directory==null) {
-					IJ.showMessage("working directory must be set");
-				} else {
-					
+				if (!isWorkingDirectorySet()) {return;}
+
+				// close currently opened image
+				if (canvas!=null) {
+					canvas.getImage().close();
 				}
+				
+				// get random image name
+				LinkedList<String> image_names = new LinkedList<String>();
+				File folder = new File(working_directory + "/watershed_images/");						
+				for(File child : folder.listFiles()) {
+				    if (!child.getAbsolutePath().endsWith(".tif")) {
+				        continue;
+				    }
+				    image_names.add(child.getName());
+				}
+				int i = random.nextInt(image_names.size());
+				image_name = image_names.get(i);
+				
+				// open annotation interface for image
+				open_annotation_interface();
 			} else if (command.equals("Open specific image")) {
 				if (isLocked()) {return;}
-				working_directory="/Users/michaelchiang/Desktop/projects/blobSegmenter-repo/example_working_directory/";
-				if (working_directory==null) {
-					IJ.showMessage("working directory must be set");
-				} else {
-					// get preprocessing parameters
-					GenericDialog gd = new GenericDialog("Open image");
-					gd.addStringField("image name", "94.tif");
-					gd.showDialog();
-					if (gd.wasCanceled()) return;
-					image_name = gd.getNextString();
-					
-					// set up annotation interface
-					annotation_backend = null;
-					annotation_backend = new AnnotationBackend();
-					annotation_backend.set_working_directory(working_directory);        
-					annotation_backend.open(image_name);
-					ImagePlus I = annotation_backend.display();
-					canvas = I.getWindow().getCanvas();
-					canvas.addMouseListener(this);
+				if (!isWorkingDirectorySet()) {return;}
+				//working_directory="/Users/michaelchiang/Desktop/projects/blobSegmenter-repo/example_working_directory/";
+
+				// close currently opened image
+				if (canvas!=null) {
+					canvas.getImage().close();
 				}
+				
+				// get image to open
+				GenericDialog gd = new GenericDialog("Open image");
+				gd.addStringField("image name", "");
+				gd.showDialog();
+				if (gd.wasCanceled()) return;
+				image_name = gd.getNextString();
+				
+				// open annotation interface for image
+				open_annotation_interface();
 			} else if (command.equals("Save annotations")) {
-				if (isLocked()) {return;}				
+				if (isLocked()) {return;}
+				if (!isWorkingDirectorySet()) {return;}
 				annotation_backend.serializeTrainingData();
 			} else if (command.equals("Train SVM and apply")) {
 				if (isLocked()) {return;}
-				ImagePlus I = canvas.getImage();
-				I.lock();
+				if (!isWorkingDirectorySet()) {return;}
+				lock();
 				annotation_backend.trainSVM();
-				I.unlock();				
+				unlock();				
 			}
 			
 			IJ.showStatus((System.currentTimeMillis()-startTime)+" milliseconds");
 		}
 		
-		public Boolean isLocked() {
-			if (canvas==null) {
-				return false;
-			}
-			ImagePlus I = canvas.getImage();
-			if (I.isLocked()) {
-				IJ.showMessage("Wait until image is unlocked");
-				return true;
-			}
-			return false;
+		private void open_annotation_interface() {
+			annotation_backend = null;
+			annotation_backend = new AnnotationBackend();
+			annotation_backend.set_working_directory(working_directory);        
+			annotation_backend.open(image_name);
+			ImagePlus I = annotation_backend.display();
+			canvas = I.getWindow().getCanvas();
+			canvas.addMouseListener(this);
 		}
+		
 		
 		
 		public void mouseClicked(MouseEvent e) {
@@ -216,9 +235,33 @@ public class Annotate_ extends PlugInFrame implements ActionListener {
 
 
 	
-
-
-
+	private Boolean isWorkingDirectorySet() {
+		if (working_directory==null) {
+			IJ.showMessage("working directory must be set");
+			return false;
+		} else {
+			return true;
+		}
+	}
+	private Boolean isLocked() {
+		if (canvas==null) {
+			return false;
+		}
+		ImagePlus I = canvas.getImage();
+		if (I.isLocked()) {
+			IJ.showMessage("Wait until image is unlocked");
+			return true;
+		}
+		return false;
+	}
+	private void lock() {
+		ImagePlus I = canvas.getImage();
+		I.lock();
+	}
+	private void unlock() {
+		ImagePlus I = canvas.getImage();
+		I.unlock();
+	}
 	
 	
 	

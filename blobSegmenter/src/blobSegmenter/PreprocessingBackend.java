@@ -43,17 +43,16 @@ public class PreprocessingBackend {
 	//   (3) Finding a proposed lipid droplet segmentation in each watershed catchment basin
 	//		 Each proposed segmentation is characterized.
 	void preprocess_batch(double blur_sigma, int threshold_step_size, int dilate_radius) {
-		String[] input_images = get_list_of_image_files("input_images");
+		File folder = new File(working_directory + "/input_images/");	
+		String[] input_images = folder.list();
         for (int i=0;i<input_images.length;i++) {
+        	if (!input_images[i].endsWith(".tif")) {
+        		continue;
+        	}
             blur(working_directory+"/input_images/"+input_images[i],working_directory+"/blurred_images/"+input_images[i],blur_sigma);
             watershed(working_directory+"/blurred_images/"+input_images[i],working_directory+"/watershed_images/"+input_images[i]);
             proposed_segmentations(working_directory+"/blurred_images/"+input_images[i],working_directory+"/watershed_images/"+input_images[i], working_directory+"/proposed_segmentations/"+input_images[i], working_directory+"/visualize_proposed_segmentations/"+input_images[i], threshold_step_size,dilate_radius);
         }
-	}
-	String[] get_list_of_image_files(String subdirectory) {
-		File folder = new File(working_directory + "/" + subdirectory + "/");	
-		String[] listOfFiles = folder.list();		
-		return listOfFiles;
 	}
 	
 	// Blurs a single image and saves blurred image

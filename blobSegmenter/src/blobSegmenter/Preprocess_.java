@@ -19,11 +19,12 @@ public class Preprocess_ extends PlugInFrame implements ActionListener {
 	private static Frame instance;
 	
 	private String working_directory;
+	private Boolean locked=false;
 	
 	// preprocessing parameters
-	private double blur_sigma;
-	private int threshold_step_size;
-    private int dilate_radius;
+	private double blur_sigma=1;
+	private int threshold_step_size=10;
+    private int dilate_radius=1;
 	
 	public Preprocess_() {
 		super("Preprocess");
@@ -94,30 +95,47 @@ public class Preprocess_ extends PlugInFrame implements ActionListener {
 			IJ.showStatus(command + "...");
 			long startTime = System.currentTimeMillis();
 			if (command.equals("Set workspace")) {
+				if (isLocked()) {return;}
 				DirectoryChooser d = new DirectoryChooser("Choose working directory");
 				working_directory = d.getDirectory();
 			} else if (command.equals("Preprocess")) {
-				if (working_directory==null) {
-					IJ.showMessage("working directory must be set");
-				} else {				
-					// get preprocessing parameters
-					GenericDialog gd = new GenericDialog("New Image");
-					gd.addNumericField("blur sigma (pixels): ", blur_sigma, 2);
-					gd.addNumericField("threshold_step_size (pixels): ", threshold_step_size, 2);
-					gd.addNumericField("dilate_radius (pixels): ", dilate_radius, 2);				
-					gd.showDialog();
-					if (gd.wasCanceled()) return;
-					blur_sigma = (double)gd.getNextNumber();
-					threshold_step_size = (int)gd.getNextNumber();				
-					dilate_radius = (int)gd.getNextNumber();
-					
-					// run preprocessing
-			        PreprocessingBackend preprocessing_backend = new PreprocessingBackend();
-			        preprocessing_backend.set_working_directory(working_directory);        
-			        preprocessing_backend.create_working_directory_substructure();
-			        preprocessing_backend.preprocess_batch(blur_sigma,threshold_step_size,dilate_radius);					
-					
+				if (isLocked()) {return;}
+				if (!isWorkingDirectorySet()) {return;}
+
+				lock();
+				// load previously used preprocessing parameters if they exist
+				File previous_parameters = new File(working_directory + "/misc/preprocessing_parameters.config");
+				if (previous_parameters.exists()) {
+					double [] klass = null;
+					double [] previousParameters = Util.deserialize(working_directory + "/misc/preprocessing_parameters.config", klass);
+					blur_sigma = previousParameters[0];
+					threshold_step_size = (int)previousParameters[1];
+					dilate_radius = (int)previousParameters[2];
 				}
+					
+				GenericDialog gd = new GenericDialog("New Image");
+				gd.addNumericField("blur sigma (pixels): ", blur_sigma, 2);
+				gd.addNumericField("threshold_step_size (pixels): ", threshold_step_size, 2);
+				gd.addNumericField("dilate_radius (pixels): ", dilate_radius, 2);
+				gd.showDialog();
+				if (gd.wasCanceled()) return;
+				blur_sigma = (double)gd.getNextNumber();
+				threshold_step_size = (int)gd.getNextNumber();				
+				dilate_radius = (int)gd.getNextNumber();
+				
+				// run preprocessing
+		        PreprocessingBackend preprocessing_backend = new PreprocessingBackend();
+		        preprocessing_backend.set_working_directory(working_directory);        
+		        preprocessing_backend.create_working_directory_substructure();
+		        preprocessing_backend.preprocess_batch(blur_sigma,threshold_step_size,dilate_radius);					
+				
+		        // save preprocessing parameters
+		        double [] parameters = new double[]{blur_sigma,threshold_step_size,dilate_radius};
+		        Util.serialize_object(parameters, working_directory+"/misc/"+"preprocessing_parameters.config");
+		        
+		        // alert user
+				IJ.showMessage("Preprocessing is finished. You may proceed to annotation");
+				unlock();
 			}
 			
 			IJ.showStatus((System.currentTimeMillis()-startTime)+" milliseconds");
@@ -128,4 +146,26 @@ public class Preprocess_ extends PlugInFrame implements ActionListener {
 		
 	} // Runner inner class
 
+	
+	private void lock() {
+		locked = true;
+	}
+	private void unlock() {
+		locked = false;
+	}
+	private Boolean isLocked() {
+		if (locked) {
+			IJ.showMessage("Wait until preprocessing is finished");
+		}
+		return locked;
+	}
+	private Boolean isWorkingDirectorySet() {
+		if (working_directory==null) {
+			IJ.showMessage("working directory must be set");
+			return false;
+		} else {
+			return true;
+		}
+	}
+	
 } //Preprocess_ class
