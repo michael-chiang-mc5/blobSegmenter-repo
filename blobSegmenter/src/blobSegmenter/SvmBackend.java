@@ -3,6 +3,9 @@ package blobSegmenter;
 import java.io.File;
 import java.util.LinkedList;
 
+import ij.IJ;
+import ij.ImagePlus;
+import ij.process.ImageProcessor;
 import libsvm.*;
 
 public class SvmBackend {
@@ -77,18 +80,98 @@ public class SvmBackend {
         model = svm.svm_train(prob, parameters);
 	}	
 	
+	void drawSegmentations_perimeter(int value, ImageProcessor I, ProposedSegmentation proposed_segmentation) {
+		I.setValue(value);
+		for (int i=0;i<proposed_segmentation.segmentation_perimeter_x.size();i++) {
+			int x_coordinate=proposed_segmentation.segmentation_perimeter_x.get(i);
+			int y_coordinate=proposed_segmentation.segmentation_perimeter_y.get(i);
+			I.drawPixel(x_coordinate, y_coordinate);				
+		}	
+	}
+	void drawSegmentations_full(int value, ImageProcessor I, ProposedSegmentation proposed_segmentation) {
+		I.setValue(value);
+		for (int i=0;i<proposed_segmentation.segmentation_full_x.size();i++) {
+			int x_coordinate=proposed_segmentation.segmentation_full_x.get(i);
+			int y_coordinate=proposed_segmentation.segmentation_full_y.get(i);
+			I.drawPixel(x_coordinate, y_coordinate);				
+		}		
+	}		
 	
-	
+	public void svmPredict_batch() {
+		// iterate over all images
+		File folder = new File(working_directory + "/proposed_segmentations/");	
+		String[] input_images = folder.list();
+        for (int i=0;i<input_images.length;i++) {
+        	// check file name
+        	if (!input_images[i].endsWith(".tif")) {
+        		continue;
+        	}
+        	
+    		// deserialize data for proposed segmentations
+    		ProposedSegmentation[] klass = null;
+    		ProposedSegmentation[] proposed_segmentations = Util.deserialize(working_directory + "/proposed_segmentations/"+input_images[i], klass);
+
+        	// run svm prediction
+    		double[] labels = svmPredict(proposed_segmentations);
+    		
+    		// create empty images to store full segmentation, perimeter segmentation
+    		int[] dim = Util.get_image_dimensions(working_directory + "/input_images/" + input_images[i]);
+    		int dimx = dim[0];
+    		int dimy = dim[1];
+    		ImagePlus full_segmentation = IJ.createImage("full_segmention", dimx, dimy, 1, 16);
+    		ImagePlus perimeter_segmentation = IJ.createImage("perimeter_segmention", dimx, dimy, 1, 16);
+    		
+	        // draw classifications
+			for (int j=1;j<labels.length;j++) {			
+				int watershed_index = proposed_segmentations[j].watershed_index;
+				double label = labels[j];
+				if (label==1) {
+					drawSegmentations_perimeter(1, perimeter_segmentation.getProcessor(), proposed_segmentations[j]);
+					drawSegmentations_full(watershed_index, full_segmentation.getProcessor(), proposed_segmentations[j]);
+				}
+			}
+			
+			// load previous segmentations if they exist
+			String file_path = working_directory + "/training_data/" + input_images[i];
+			TrainingData training_data;
+			File file = new File(file_path);
+			if (file.exists()) {
+				TrainingData klass2 = null;
+				training_data = Util.deserialize(file_path, klass2);
+				if (training_data == null) {
+					training_data = new TrainingData(); // user might save empty data
+				}
+			} else {
+				training_data = new TrainingData(); // empty training data if none exists
+			}
+						
+			// draw previous segmentations (overwriting classifications)
+			for (int j=0;j<training_data.size();j++) {
+				int watershed_index = training_data.getWatershedIndex(j);
+				int label = training_data.getLabel(j);
+				if (label==0) { // TODO: change this to -1
+					drawSegmentations_perimeter(0, perimeter_segmentation.getProcessor(), proposed_segmentations[watershed_index]);
+					drawSegmentations_full(0, full_segmentation.getProcessor(), proposed_segmentations[watershed_index]);
+				} else if (label==1) {
+					drawSegmentations_perimeter(1, perimeter_segmentation.getProcessor(), proposed_segmentations[watershed_index]);
+					drawSegmentations_full(watershed_index, full_segmentation.getProcessor(), proposed_segmentations[watershed_index]);
+				}
+			}
+			
+			// save images
+	        IJ.save(perimeter_segmentation,working_directory+"/visualize_final_segmentations/"+input_images[i]);
+	        IJ.save(full_segmentation,working_directory+"/final_segmentations/"+input_images[i]);
+	        
+	        // save labels
+	        Util.serialize_object(labels, working_directory+"/svm_labels/"+input_images[i]);
+	        
+        }
+	}
 	
 
 	public double[] svmPredict(ProposedSegmentation [] proposed_segmentations) {
 		
-		// read test data
-		/*
-	    ProposedSegmentation[] klass = null;
-	    ProposedSegmentation[] proposed_segmentations = Util.deserialize(working_directory + "/proposed_segmentations/"+file_name, klass);
-		*/
-		
+
 		// Sanity check
 		if (proposed_segmentations.length==0) {
 			System.out.println("Error: test data is empty");

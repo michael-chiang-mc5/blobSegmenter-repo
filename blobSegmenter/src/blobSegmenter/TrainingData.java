@@ -51,7 +51,7 @@ public class TrainingData implements Serializable {
 	}
 	
 	public int getWatershedIndex(int i) {
-		return watershed_index.get(i);		
+		return watershed_index.get(i);
 	}
 	
 	public int getLabel(int i) {

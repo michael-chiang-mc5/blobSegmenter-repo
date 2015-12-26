@@ -37,8 +37,8 @@ public class ProposedSegmentation implements Serializable {
 	private transient Vector<Integer> response_curve;
 	
 	// segmentation coordinates
-	private transient Vector<Integer> segmentation_full_x;
-	private transient Vector<Integer> segmentation_full_y;
+	public Vector<Integer> segmentation_full_x;
+	public Vector<Integer> segmentation_full_y;
 	public Vector<Integer> segmentation_perimeter_x;
 	public Vector<Integer> segmentation_perimeter_y;
 	private transient Vector<Integer> segmentation_outerBoundary_x;

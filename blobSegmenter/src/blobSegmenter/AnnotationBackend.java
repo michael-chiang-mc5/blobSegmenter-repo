@@ -81,6 +81,20 @@ public class AnnotationBackend {
 			}			
 		}
 		
+		// draw previous svm labels if they exist (i.e., svm step was previously run)
+		String file_path = working_directory + "/svm_labels/" + name;
+		File file = new File(file_path);
+		if (file.exists()) {
+			double[] klass2 = null;
+			double[] labels = Util.deserialize(file_path, klass2);
+			for (int i=1;i<labels.length;i++) {
+				double label = labels[i];
+				if (label==1) {
+					drawSegmentation(i, "yellow");
+				}	
+			}			
+		}	
+		
 		annotation_interface.updateAndDraw();
 		return annotation_interface;
 	}

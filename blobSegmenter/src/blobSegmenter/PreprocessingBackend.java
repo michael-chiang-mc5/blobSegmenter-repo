@@ -29,6 +29,7 @@ public class PreprocessingBackend {
 		check_subfolder_exists("misc");
 		check_subfolder_exists("visualize_final_segmentations");
 		check_subfolder_exists("final_segmentations");
+		check_subfolder_exists("svm_labels");
 	}
 	void check_subfolder_exists(String sub_directory) {
 		File folder = new File(working_directory + "/" + sub_directory + "/");

@@ -1,11 +1,12 @@
 package blobSegmenter;
 
+import libsvm.svm_parameter;
 
 public class HelloWorld {
 	
     public static void main(String[] args) {
 
-        
+        /*
         PreprocessingBackend preprocessing_backend = new PreprocessingBackend();
         preprocessing_backend.set_working_directory("/Users/michaelchiang/Desktop/projects/blobSegmenter-repo/example_working_directory");        
         preprocessing_backend.create_working_directory_substructure();
@@ -22,18 +23,14 @@ public class HelloWorld {
         SvmBackend svm_backend = new SvmBackend();
         svm_backend.set_working_directory("/Users/michaelchiang/Desktop/projects/blobSegmenter-repo/example_working_directory");        
         svm_backend.read_training_data(); // always read and train on all images
-        //svm_backend.svmTrain();
-
-        /*
-
-        
-        int [] dim = Util.get_image_dimensions("/Users/michaelchiang/Desktop/projects/blobSegmenter-repo/example_working_directory/input_images/94.tif");
-	    int dimx=dim[0];
-	    int dimy=dim[1];
-	    ImagePlus masks = IJ.createImage("output", dimx, dimy, 1, 16);
-        //svm_backend.svmPredict("94.tif",masks.getProcessor());
-        //IJ.save(masks,"/Users/michaelchiang/Desktop/projects/blobSegmenter-repo/example_working_directory/visualize_final_segmentations/94.tif");
-        */
+		*/
+    	
+        SvmBackend svm_backend = new SvmBackend();
+        svm_backend.set_working_directory("/Users/michaelchiang/Desktop/projects/blobSegmenter-repo/example_working_directory");
+        svm_backend.set_svm_parameters(1, 0.5, 0.5, 100, 0.001);
+        svm_backend.read_training_data(); // always read and train on all images
+        svm_backend.svmTrain();
+        svm_backend.svmPredict_batch();		    	
 
         System.out.println("done");
     }
