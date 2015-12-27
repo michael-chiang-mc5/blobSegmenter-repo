@@ -3,11 +3,8 @@ package blobSegmenter;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
-import java.util.LinkedList;
-import java.util.Random;
 
 import ij.plugin.frame.*;
-import libsvm.svm_parameter;
 import ij.*;
 import ij.gui.*;
 

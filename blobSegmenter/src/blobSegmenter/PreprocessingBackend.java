@@ -148,6 +148,7 @@ public class PreprocessingBackend {
         // Get prospective lipid droplet segmentations and features
         for (int i=1;i<number_of_watershed_basins+1;i++) {
             proposed_segmentations.get(i).setData();
+            proposed_segmentations.get(i).omit_if_on_boundary();
             proposed_segmentations.get(i).set_image_level_features(blurred_image_features);
             proposed_segmentations.get(i).set_segmentation_level_features();           
         }

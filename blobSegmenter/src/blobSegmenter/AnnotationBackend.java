@@ -73,7 +73,6 @@ public class AnnotationBackend {
 		for (int i=0;i<training_data.size();i++) {
 			int watershed_index = training_data.getWatershedIndex(i);
 			int label = training_data.getLabel(i);
-			IJ.log("label="+label);
 			if (label==0) {
 				drawSegmentation(watershed_index, "red");
 			} else if (label==1) {
@@ -87,10 +86,10 @@ public class AnnotationBackend {
 		if (file.exists()) {
 			double[] klass2 = null;
 			double[] labels = Util.deserialize(file_path, klass2);
-			for (int i=1;i<labels.length;i++) {
-				double label = labels[i];
-				if (label==1) {
-					drawSegmentation(i, "yellow");
+			for (int watershed_index=1;watershed_index<labels.length;watershed_index++) {
+				double label = labels[watershed_index];
+				if (label==1 && !proposed_segmentations[watershed_index].omit) {
+					drawSegmentation(watershed_index, "yellow");
 				}	
 			}			
 		}	
@@ -102,7 +101,13 @@ public class AnnotationBackend {
 	void addTrainingData(int x,int y, int label) {
 		// get watershed index
 		int watershed_index = watershed_image.getPixel(x, y);
+		IJ.log(" " + proposed_segmentations[watershed_index].omit);
+		
+		// don't do anything if clicked watershed boundary or segmentation on edge
 		if (watershed_index==0) {
+			return;
+		}
+		if (proposed_segmentations[watershed_index].omit) {
 			return;
 		}
 		
@@ -113,7 +118,12 @@ public class AnnotationBackend {
 	void removeTrainingData(int x,int y) {
 		// get watershed index
 		int watershed_index = watershed_image.getPixel(x, y);
+		
+		// don't do anything if clicked watershed boundary or segmentation on edge
 		if (watershed_index==0) {
+			return;
+		}
+		if (proposed_segmentations[watershed_index].omit) {
 			return;
 		}
 		
@@ -161,12 +171,15 @@ public class AnnotationBackend {
 	}
 	
 	void drawSegmentation(int x,int y, String color) {
-		// get watershed index
+		// don't do anything if clicked watershed boundary or segmentation on edge
 		int watershed_index = watershed_image.getPixel(x, y);
 		if (watershed_index==0) {
 			return;
 		}
-		
+		if (proposed_segmentations[watershed_index].omit) {
+			return;
+		}
+				
 		//
 		drawSegmentation(watershed_index, color);
 	}
@@ -223,12 +236,10 @@ public class AnnotationBackend {
         double [] labels = svm_backend.svmPredict(proposed_segmentations);
 
         // draw classifications
-        System.out.println("drawing classification");
-
 		for (int i=1;i<labels.length;i++) {			
 			int watershed_index = proposed_segmentations[i].watershed_index;
 			double label = labels[i];
-			if (label==0) {// TODO: change this to -1
+			if (label==0 || proposed_segmentations[i].omit) {// TODO: change this to -1
 				drawSegmentation(watershed_index, "none");
 			} else if (label==1) {
 				drawSegmentation(watershed_index, "yellow");

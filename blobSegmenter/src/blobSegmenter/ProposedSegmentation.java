@@ -14,6 +14,7 @@ public class ProposedSegmentation implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	public int watershed_index; // index of corresponding watershed basin
+	public Boolean omit=false;
 	
 	// statistics for watershed catchment basin
 	private transient Vector<Integer> basin_sparse_x; // sparse x-coordinates of basin encompassing segmentation
@@ -176,8 +177,17 @@ public class ProposedSegmentation implements Serializable {
 				}			
 			}
 		}		
-		
-
+	}
+	
+	public void omit_if_on_boundary() {
+		int dimx = blurred_image.getWidth();
+		int dimy = blurred_image.getHeight();
+		for (int i=0;i<segmentation_perimeter_x.size();i++) {
+			if (segmentation_perimeter_x.get(i)==0 || segmentation_perimeter_x.get(i)==dimx-1 || segmentation_perimeter_y.get(i)==0 || segmentation_perimeter_y.get(i)==dimy-1) {
+				omit=true;
+				break;
+			}
+		}
 	}
 	
 	public void draw_segmentation_mask(ImageProcessor output, int value) {

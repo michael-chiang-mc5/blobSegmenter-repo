@@ -125,7 +125,7 @@ public class SvmBackend {
 			for (int j=1;j<labels.length;j++) {			
 				int watershed_index = proposed_segmentations[j].watershed_index;
 				double label = labels[j];
-				if (label==1) {
+				if (label==1 && !(proposed_segmentations[j].omit)) {
 					drawSegmentations_perimeter(1, perimeter_segmentation.getProcessor(), proposed_segmentations[j]);
 					drawSegmentations_full(watershed_index, full_segmentation.getProcessor(), proposed_segmentations[j]);
 				}
@@ -195,30 +195,6 @@ public class SvmBackend {
 	        double[] prob_estimates = new double[totalClasses];
 	        yPred[k] = svm.svm_predict_probability(model, nodes, prob_estimates);
 	    }
-	    
-	    // display segmentation classifications
-	    /*
-        for (int i=1;i<yPred.length;i++) {
-        	if (yPred[i]==1) {
-        		proposed_segmentations[i].draw_segmentation_mask(masks,1);		
-        	}
-        }
-
-        // overwrite with annotations // TODO: make this optional for benchmarking
-		TrainingData klass2 = null;
-		TrainingData training_data = Util.deserialize(working_directory+"/training_data/"+file_name, klass2);
-		for (int i=0;i<training_data.size();i++) {
-			int label = training_data.getLabel(i);
-			int watershed_index = training_data.getWatershedIndex(i);
-			if (label==1) {
-        		proposed_segmentations[watershed_index].draw_segmentation_mask(masks,1);
-			} else if (label==0) { // TODO: change this to -1
-        		proposed_segmentations[watershed_index].draw_segmentation_mask(masks,0);				
-			} else {
-				System.out.println("Error: label is " + label);
-			}
-		}
-		*/
 	    
 	    return yPred;
     
