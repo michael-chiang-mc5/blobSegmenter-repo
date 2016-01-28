@@ -1,9 +1,8 @@
-package blobSegmenter;
+package ldSegmenterPlugin;
 
 import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
-
 import ij.plugin.frame.*;
 import ij.*;
 import ij.gui.*;
@@ -13,7 +12,7 @@ import ij.io.DirectoryChooser;
 /**
 	Interactive pipeline to run blob segmenter algorithm
 */
-public class RunSVM_ extends PlugInFrame implements ActionListener {
+public class Preprocess_ extends PlugInFrame implements ActionListener {
 
 	private static final long serialVersionUID = 1L;
 	private Panel panel;
@@ -22,15 +21,13 @@ public class RunSVM_ extends PlugInFrame implements ActionListener {
 	private String working_directory;
 	private Boolean locked=false;
 	
-	// svm parameters
-	int probability = 1;
-	double gamma = 0.5;
-	double nu = 0.5;
-	double C = 100;
-	double eps = 0.001;   	
+	// preprocessing parameters
+	private double blur_sigma=1;
+	private int threshold_step_size=10;
+    private int dilate_radius=1;
 	
-	public RunSVM_() {
-		super("Train an SVM and apply to all images");
+	public Preprocess_() {
+		super("Preprocess");
 		if (instance!=null) {
 			instance.toFront();
 			return;
@@ -42,7 +39,7 @@ public class RunSVM_ extends PlugInFrame implements ActionListener {
 		panel = new Panel();
 		panel.setLayout(new GridLayout(2, 1, 5, 5));
 		addButton("Set workspace");		
-		addButton("Train SVM and apply to all images");
+		addButton("Preprocess");		
 		add(panel);
 		
 		pack();
@@ -68,6 +65,7 @@ public class RunSVM_ extends PlugInFrame implements ActionListener {
 			instance = null;	
 		}
 	}
+
 
 	class Runner extends Thread { // inner class
 		private String command;
@@ -100,69 +98,67 @@ public class RunSVM_ extends PlugInFrame implements ActionListener {
 				if (isLocked()) {return;}
 				DirectoryChooser d = new DirectoryChooser("Choose working directory");
 				working_directory = d.getDirectory();
-			} else if (command.equals("Train SVM and apply to all images")) {
+			} else if (command.equals("Preprocess")) {
 				if (isLocked()) {return;}
 				if (!isWorkingDirectorySet()) {return;}
-				
+
+				lock();
 				// load previously used preprocessing parameters if they exist
-				File previous_parameters = new File(working_directory + "/misc/svm_parameters.config");
+				File previous_parameters = new File(working_directory + "/misc/preprocessing_parameters.config");
 				if (previous_parameters.exists()) {
 					double [] klass = null;
-					double [] previousParameters = Util.deserialize(working_directory + "/misc/svm_parameters.config", klass);
-					probability = (int)previousParameters[0];
-					gamma = (double)previousParameters[1];				
-					nu = (double)previousParameters[2];
-					C = (double)previousParameters[3];
-					eps = (double)previousParameters[4];
+					double [] previousParameters = Util.deserialize(working_directory + "/misc/preprocessing_parameters.config", klass);
+					blur_sigma = previousParameters[0];
+					threshold_step_size = (int)previousParameters[1];
+					dilate_radius = (int)previousParameters[2];
 				}
-				
-				// get svm parameters
-				GenericDialog gd = new GenericDialog("Svm parameters");
-				gd.addNumericField("probability: ", probability, 2);
-				gd.addNumericField("gamma: ", gamma, 2);
-				gd.addNumericField("nu: ", nu, 2);
-				gd.addNumericField("C: ", C, 2);
-				gd.addNumericField("eps: ", eps, 2);				
+					
+				GenericDialog gd = new GenericDialog("Preprocessing parameters");
+				gd.addNumericField("blur sigma (pixels): ", blur_sigma, 2);
+				gd.addNumericField("threshold_step_size (pixels): ", threshold_step_size, 2);
+				gd.addNumericField("dilate_radius (pixels): ", dilate_radius, 2);
 				gd.showDialog();
 				if (gd.wasCanceled()) return;
-				probability = (int)gd.getNextNumber();
-				gamma = (double)gd.getNextNumber();				
-				nu = (double)gd.getNextNumber();
-				C = (double)gd.getNextNumber();
-				eps = (double)gd.getNextNumber();				
+				blur_sigma = (double)gd.getNextNumber();
+				threshold_step_size = (int)gd.getNextNumber();				
+				dilate_radius = (int)gd.getNextNumber();
 				
-				// run svm
-				lock();
-
-				// run svm and get labels
-		        SvmBackend svm_backend = new SvmBackend();
-		        svm_backend.set_working_directory(working_directory);
-		        svm_backend.set_svm_parameters(probability, gamma, nu, C, eps);
-		        svm_backend.read_training_data(); // always read and train on all images
-		        svm_backend.svmTrain();
-		        svm_backend.svmPredict_batch();			
+				// run preprocessing
+		        PreprocessingBackend preprocessing_backend = new PreprocessingBackend();
+		        preprocessing_backend.set_working_directory(working_directory);        
+		        preprocessing_backend.create_working_directory_substructure();
+		        preprocessing_backend.preprocess_batch(blur_sigma,threshold_step_size,dilate_radius);					
 				
-				unlock();
-				
-		        // save svm parameters
-		        double [] parameters = new double[]{probability,gamma,nu,C,eps};
-		        Util.serialize_object(parameters, working_directory+"/misc/"+"svm_parameters.config");
+		        // save preprocessing parameters
+		        double [] parameters = new double[]{blur_sigma,threshold_step_size,dilate_radius};
+		        Util.serialize_object(parameters, working_directory+"/misc/"+"preprocessing_parameters.config");
 		        
 		        // alert user
-				IJ.showMessage("SVM is finished");
-				unlock();				
+				IJ.showMessage("Preprocessing is finished. You may proceed to annotation");
+				unlock();
 			}
 			
 			IJ.showStatus((System.currentTimeMillis()-startTime)+" milliseconds");
 		}
 		
-
+	
 		
 		
 	} // Runner inner class
 
-
 	
+	private void lock() {
+		locked = true;
+	}
+	private void unlock() {
+		locked = false;
+	}
+	private Boolean isLocked() {
+		if (locked) {
+			IJ.showMessage("Wait until preprocessing is finished");
+		}
+		return locked;
+	}
 	private Boolean isWorkingDirectorySet() {
 		if (working_directory==null) {
 			IJ.showMessage("working directory must be set");
@@ -171,21 +167,5 @@ public class RunSVM_ extends PlugInFrame implements ActionListener {
 			return true;
 		}
 	}
-	private Boolean isLocked() {
-		if (locked) {
-			IJ.showMessage("Wait until image is unlocked");
-			return true;
-		} else {
-			return false;
-		}
-	}
-	private void lock() {
-		locked=true;
-	}
-	private void unlock() {
-		locked=false;
-	}
-	
-	
 	
 } //Preprocess_ class

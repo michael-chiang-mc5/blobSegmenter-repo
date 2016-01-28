@@ -1,4 +1,4 @@
-package blobSegmenter;
+package ldSegmenterPlugin;
 
 import java.io.File;
 
@@ -101,7 +101,6 @@ public class AnnotationBackend {
 	void addTrainingData(int x,int y, int label) {
 		// get watershed index
 		int watershed_index = watershed_image.getPixel(x, y);
-		IJ.log(" " + proposed_segmentations[watershed_index].omit);
 		
 		// don't do anything if clicked watershed boundary or segmentation on edge
 		if (watershed_index==0) {
@@ -153,6 +152,12 @@ public class AnnotationBackend {
 		} else {
 			is_erase = true;
 		}
+		
+		/*
+		for (int i=0;i<proposed_segmentations[watershed_index].feature_vector.length;i++) {
+			IJ.log("feature "+i+"= "+proposed_segmentations[watershed_index].feature_vector[i]);
+		}
+		*/
 		
 		// draw segmentation outline
 		if (!is_erase) {

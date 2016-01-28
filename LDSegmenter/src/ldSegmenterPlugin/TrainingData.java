@@ -1,20 +1,15 @@
-package blobSegmenter;
+package ldSegmenterPlugin;
 
 import java.io.Serializable;
-import java.util.LinkedList;
+import java.util.ArrayList;
+import java.util.List;
 
 public class TrainingData implements Serializable {
 	private static final long serialVersionUID = 1L;
 	
-	private LinkedList<Integer> labels; // 0 for negative annotation, 1 for positive annotation
-	private LinkedList<double[]> feature_vectors; //
-	private LinkedList<Integer> watershed_index; // 
-	
-	public TrainingData() {
-		labels = new LinkedList<Integer>();
-		feature_vectors = new LinkedList<double[]>();
-		watershed_index = new LinkedList<Integer>();
-	}
+	private List<Integer> labels = new ArrayList<Integer>(); // 0 for negative annotation, 1 for positive annotation
+	private List<  List<Double> > feature_vectors = new ArrayList< List<Double> >(); //
+	private List<Integer> watershed_index = new ArrayList<Integer>(); // 
 	
 	public void add(ProposedSegmentation o, int label) {
 		// Don't do anything if already added
@@ -58,7 +53,7 @@ public class TrainingData implements Serializable {
 		return labels.get(i);
 	}
 	
-	public double[] getFeatureVector(int i) {
+	public List<Double> getFeatureVector(int i) {
 		return feature_vectors.get(i);
 	}
 	

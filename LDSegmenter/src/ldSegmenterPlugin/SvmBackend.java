@@ -1,7 +1,9 @@
-package blobSegmenter;
+package ldSegmenterPlugin;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.List;
 
 import ij.IJ;
 import ij.ImagePlus;
@@ -11,8 +13,8 @@ import libsvm.*;
 public class SvmBackend {
 	private String working_directory;
 	
-	LinkedList<Integer> labels;
-	LinkedList<double[]> feature_vectors;
+	List<Integer> labels;
+	List< List<Double> > feature_vectors;
 
 	svm_model model;
 	svm_parameter parameters;
@@ -35,8 +37,8 @@ public class SvmBackend {
 	
 
 	public void read_training_data() {
-		labels = new LinkedList<Integer>(); // 0 for negative annotation, 1 for positive annotation TODO: change to -1, 1
-		feature_vectors = new LinkedList<double[]>();
+		labels = new ArrayList<Integer>(); // 0 for negative annotation, 1 for positive annotation TODO: change to -1, 1
+		feature_vectors = new ArrayList< List<Double> >();
 		File folder = new File(working_directory + "/training_data/");		
 		for(File child : folder.listFiles()) {
 		    if (!child.getAbsolutePath().endsWith(".tif")) {
@@ -61,18 +63,18 @@ public class SvmBackend {
 	public void svmTrain() {
 		svm_problem prob = new svm_problem();
 		int recordCount = labels.size();
-		int featureCount = feature_vectors.getFirst().length;
+		int featureCount = feature_vectors.get(0).size();
 		
 		prob.y = new double[recordCount]; // label
 		prob.l = recordCount;			  // size of training set
 		prob.x = new svm_node[recordCount][featureCount];
 		for (int i=0;i<recordCount;i++) {
-			double[] features = feature_vectors.get(i);
-			prob.x[i] = new svm_node[features.length];
-			for (int j=0; j<features.length; j++) {
+			List<Double>features = feature_vectors.get(i);
+			prob.x[i] = new svm_node[features.size()];
+			for (int j=0; j<features.size(); j++) {
 				svm_node node = new svm_node();
 				node.index = j;
-				node.value = features[j];
+				node.value = features.get(j);
 				prob.x[i][j] = node;
 			}
 			prob.y[i] = labels.get(i);
@@ -180,12 +182,12 @@ public class SvmBackend {
 		// classify
         double[] yPred = new double[proposed_segmentations.length]; // TODO: can this be turned into int?
 	    for(int k = 1; k < proposed_segmentations.length; k++){
-	    	double[] fVector = proposed_segmentations[k].feature_vector;
-	        svm_node[] nodes = new svm_node[fVector.length];
-	        for (int i = 0; i < fVector.length; i++) {
+	    	List<Double> fVector = proposed_segmentations[k].feature_vector;
+	        svm_node[] nodes = new svm_node[fVector.size()];
+	        for (int i = 0; i < fVector.size(); i++) {
 	            svm_node node = new svm_node();
 	            node.index = i;
-	            node.value = fVector[i];
+	            node.value = fVector.get(i);
 	            nodes[i] = node;
 	        }
 	        int totalClasses = 2;       

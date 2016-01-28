@@ -1,4 +1,4 @@
-package blobSegmenter;
+package ldSegmenterPlugin;
 
 import java.awt.*;
 import java.awt.event.*;

@@ -1,4 +1,4 @@
-package blobSegmenter;
+package ldSegmenterPlugin;
 
 import java.io.File;
 import java.util.Vector;
@@ -52,7 +52,7 @@ public class PreprocessingBackend {
         	}
             blur(working_directory+"/input_images/"+input_images[i],working_directory+"/blurred_images/"+input_images[i],blur_sigma);
             watershed(working_directory+"/blurred_images/"+input_images[i],working_directory+"/watershed_images/"+input_images[i]);
-            proposed_segmentations(working_directory+"/blurred_images/"+input_images[i],working_directory+"/watershed_images/"+input_images[i], working_directory+"/proposed_segmentations/"+input_images[i], working_directory+"/visualize_proposed_segmentations/"+input_images[i], threshold_step_size,dilate_radius);
+            proposed_segmentations(working_directory+"/blurred_images/"+input_images[i],working_directory+"/input_images/"+input_images[i],working_directory+"/watershed_images/"+input_images[i], working_directory+"/proposed_segmentations/"+input_images[i], working_directory+"/visualize_proposed_segmentations/"+input_images[i], threshold_step_size,dilate_radius);
         }
 	}
 	
@@ -108,7 +108,7 @@ public class PreprocessingBackend {
 	}
 	
 	// Gets proposed segmentations on a single image and saves a serialized object containing proposed segmentations
-	void proposed_segmentations(String blur_path, String watershed_path, String output_file_path, String output_image_path, int threshold_step_size, int dilation_radius) {
+	void proposed_segmentations(String blur_path, String input_image_path, String watershed_path, String output_file_path, String output_image_path, int threshold_step_size, int dilation_radius) {
 		// return if output already exists
 		File output_file = new File(output_file_path);
 		File output_image = new File(output_image_path);
@@ -118,6 +118,7 @@ public class PreprocessingBackend {
 		
 		// Open blurred and watershed image
 		Opener opener = new Opener();
+		ImagePlus input_image = opener.openImage(input_image_path);
 		ImagePlus blurred_image = opener.openImage(blur_path);	
 		ImagePlus watershed_image = opener.openImage(watershed_path);	
 
@@ -130,7 +131,7 @@ public class PreprocessingBackend {
         // Create sparse_indices, vector of integer vectors. Each integer vector is a list of pixel indices
     	Vector<ProposedSegmentation> proposed_segmentations = new Vector<ProposedSegmentation>(number_of_watershed_basins+1); // add 1 because we also record statistics for 0-basin (i.e., the boundaries)
     	for (int i=0;i<number_of_watershed_basins+1;i++) {
-    		ProposedSegmentation c = new ProposedSegmentation(i,threshold_step_size,dilation_radius,blurred_image.getProcessor(),watershed_image.getProcessor());
+    		ProposedSegmentation c = new ProposedSegmentation(i,threshold_step_size,dilation_radius,input_image.getProcessor(),blurred_image.getProcessor(),watershed_image.getProcessor());
     		proposed_segmentations.addElement(c);
     	}
    	   	
@@ -142,14 +143,14 @@ public class PreprocessingBackend {
         	}
         }
 
-        // Get image level features (50%, 90%, 99% percentile pixel intensities of image)
-        int blurred_image_features[] = ProposedSegmentation.get_image_level_features(blurred_image.getProcessor());
+        // Get image level features (50%, 90%, 99% percentile pixel intensities of image, etc.)
+        double image_level_features[] = ProposedSegmentation.get_image_level_features(blurred_image.getProcessor());
         
         // Get prospective lipid droplet segmentations and features
         for (int i=1;i<number_of_watershed_basins+1;i++) {
             proposed_segmentations.get(i).setData();
             proposed_segmentations.get(i).omit_if_on_boundary();
-            proposed_segmentations.get(i).set_image_level_features(blurred_image_features);
+            proposed_segmentations.get(i).set_image_level_features(image_level_features);
             proposed_segmentations.get(i).set_segmentation_level_features();           
         }
         

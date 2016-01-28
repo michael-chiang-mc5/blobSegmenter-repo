@@ -1,6 +1,8 @@
-package blobSegmenter;
+package ldSegmenterPlugin;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Vector;
 
 import ij.process.ImageProcessor;
@@ -27,6 +29,7 @@ public class ProposedSegmentation implements Serializable {
 	private transient int basin_max_blurredPixelVal;  // maximum pixel value of blurred image within basin
 	
 	// shared images
+	private transient ImageProcessor input_image;     // not serializable
 	private transient ImageProcessor blurred_image;   // not serializable
 	private transient ImageProcessor watershed_image; // not serializable
 	
@@ -46,22 +49,43 @@ public class ProposedSegmentation implements Serializable {
 	private transient Vector<Integer> segmentation_outerBoundary_y;
 	
 	// features used to determine whether proposed segmentation is an actual lipid droplet
-	public double[] feature_vector;
+	public List<Double> feature_vector = new ArrayList<Double>();
 	public String[] feature_names  = {"blurred_image_prc50",    				// 0  , image level feature
+									  "blurred_image_prc75",
 			                          "blurred_image_prc90",    				// 1  , image level feature
-			                          "blurred_image_prc_99",  					// 2  , image level feature
-			                          "segmentation_size",						// 3  , offset here
-			                          "segmentation_meanPixelValue",			// 4
-			                          "segmentation_boundaryMeanPixelValue",	// 5
+									  "blurred_image_prc95",
+			                          "blurred_image_prc99",  					// 2  , image level feature
+									  "blurred_image_prc999",
+									  "skewness",
+									  "kurtosis",
+
+									  "minVal_Inside",
+									  "maxVal_Inside",
+									  "minVal_Outside",
+									  "maxVal_Outside",
+									  "minVal_Inside_blur",
+									  "maxVal_Inside_blur",
+									  "minVal_Outside_blur",
+									  "maxVal_Outside_blur",
+									  "meanIn_minus_meanOut",
+									  "SNR",
+									  "CoV_Inside",
+									  "CoV_Outside",
+									  //"skewness_Inside",// possible NaN
+									  //"skewness_Outside",
+									  //"kurtosis_Inside", // possible NaN
+									  //"kurtosis_Outside",
+									  "area",
+									  "eccentricity"							
 									 };
-	private transient int feature_offset = 3;
+	private transient int feature_offset = 8;
 	
 	/*
 	 * Constructor:
 	 *   index: This is the index of the watershed basin we are going to work on
 	 *   watershed: This is a watershed image
 	 */
-	public ProposedSegmentation(int index, int threshold_step_size, int dilation_radius, ImageProcessor blurred_image, ImageProcessor watershed_image) {
+	public ProposedSegmentation(int index, int threshold_step_size, int dilation_radius, ImageProcessor input_image, ImageProcessor blurred_image, ImageProcessor watershed_image) {
 		// set index
 		this.watershed_index = index;
 		
@@ -80,9 +104,9 @@ public class ProposedSegmentation implements Serializable {
 		segmentation_perimeter_y = new Vector<Integer>(0);
 		segmentation_outerBoundary_x = new Vector<Integer>(0);
 		segmentation_outerBoundary_y = new Vector<Integer>(0);
-		feature_vector = new double[feature_names.length];
 		
 		// set images (these are shared between different self objects)
+		this.input_image = input_image;
 		this.blurred_image = blurred_image;
 		this.watershed_image = watershed_image;
 	}
@@ -202,36 +226,151 @@ public class ProposedSegmentation implements Serializable {
 	// TODO: make add_sparse_x into static method
 	// TODO: shape descriptors https://code.google.com/p/jfeaturelib/wiki/FeaturesOverview
 	// TODO: sift, surf features
-	public void set_image_level_features(int [] blurred_image_features) {
+	public void set_image_level_features(double [] blurred_image_features) {
 		for (int i=0;i<blurred_image_features.length;i++) {
-			feature_vector[i] = blurred_image_features[i];
+			feature_vector.add(blurred_image_features[i]);
 		}
 	}
 
 	public void set_segmentation_level_features() {
-		int segmentation_size = basin_sparse_x.size();
-		int segmentation_meanValue = mean_pixel_intensity(segmentation_full_x, segmentation_full_y, blurred_image);
-		int segmentationBoundary_meanValue = mean_pixel_intensity(segmentation_outerBoundary_x, segmentation_outerBoundary_y, blurred_image);		
+		// minimum, maximum pixel values in inside/outside segmentation
+		/*
+		int [] minmax_inner_input = Util.get_min_and_max_pixel_value(segmentation_full_x,segmentation_full_y,input_image);
+		int [] minmax_inner_blur  = Util.get_min_and_max_pixel_value(segmentation_full_x,segmentation_full_y,blurred_image);
+		int [] minmax_outer_input = Util.get_min_and_max_pixel_value(segmentation_outerBoundary_x,segmentation_outerBoundary_y,input_image);
+		int [] minmax_outer_blur  = Util.get_min_and_max_pixel_value(segmentation_outerBoundary_x,segmentation_outerBoundary_y,blurred_image);
+		int minVal_Inside = minmax_inner_input[0];
+		int maxVal_Inside = minmax_inner_input[1];
+		int minVal_Outside = minmax_outer_input[0];
+		int maxVal_Outside = minmax_outer_input[1];
+		int minVal_Inside_blur = minmax_inner_blur[0];
+		int maxVal_Inside_blur = minmax_inner_blur[1];
+		int minVal_Outside_blur = minmax_outer_blur[0];
+		int maxVal_Outside_blur = minmax_outer_blur[1];
+		*/
+		
+		// median/mean/std value inside/outside segmentation 
+		/*
+		int medianVal_Inside  = Util.get_median_pixel_intensity(segmentation_full_x, segmentation_full_y, blurred_image);
+		int medianVal_Outside = Util.get_median_pixel_intensity(segmentation_outerBoundary_x, segmentation_outerBoundary_y, blurred_image);
+		*/
+		double meanVal_Inside  = Util.get_mean_pixel_intensity(segmentation_full_x, segmentation_full_y, blurred_image);
+		double meanVal_Outside = Util.get_mean_pixel_intensity(segmentation_outerBoundary_x, segmentation_outerBoundary_y, blurred_image);		
+		/*
+		double variance_Inside   = Util.get_variance_pixel_intensity(segmentation_full_x, segmentation_full_y, blurred_image);
+		double variance_Outside  = Util.get_variance_pixel_intensity(segmentation_outerBoundary_x, segmentation_outerBoundary_y, blurred_image);
+		*/
 
-		double [] segmentation_level_features = {segmentation_size,segmentation_meanValue,segmentationBoundary_meanValue};
+		// mean(inside) - mean(outside)
+		double meanIn_minus_meanOut = meanVal_Inside - meanVal_Outside;
+		
+		// mean(inside) / mean(outside)
+		double meanIn_divided_meanOut = meanVal_Inside / meanVal_Outside;
+		
+		// median(inside)/median(outside) , (SNR)
+		//int SNR = medianVal_Inside - medianVal_Outside;
+		
+		// CoV inside/outside
+		//double CoV_Inside  = Math.sqrt(variance_Inside)/meanVal_Inside;
+		//double CoV_Outside = Math.sqrt(variance_Outside)/meanVal_Outside;
+
+		// skewness/kurtosis of segIn/segOut/fullI
+		// Skew = 3(mean - median) / Standard Deviation
+		// TODO: skewness, kurtosis to image level statistics
+		//double skewness_Inside = 3*(meanVal_Inside-medianVal_Inside)/Math.sqrt(variance_Inside);
+		//double skewness_Outside = 3*(meanVal_Outside-medianVal_Outside)/Math.sqrt(variance_Outside);
+		//double m4_Inside = Util.get_m4_pixel_intensity(segmentation_full_x, segmentation_full_y, blurred_image);
+		//double m2_Inside = variance_Inside;
+		//double kurtosis_Inside = m4_Inside/(m2_Inside*m2_Inside) - 3;
+		//double m4_Outside = Util.get_m4_pixel_intensity(segmentation_outerBoundary_x, segmentation_outerBoundary_y, blurred_image);
+		//double m2_Outside = variance_Outside;
+		//double kurtosis_Outside = m4_Outside/(m2_Outside*m2_Outside) - 3;
+		
+		// shape based features
+		int area = basin_sparse_x.size();
+		
+		// eccentricity, major/minor axis
+		/*
+		Vector<Integer> asdfx = new Vector<Integer>();
+		Vector<Integer> asdfy = new Vector<Integer>();
+		asdfx.add(1);
+		asdfx.add(1);
+		asdfx.add(1);
+		asdfx.add(1);
+		asdfx.add(1);
+		asdfx.add(2);
+		asdfx.add(2);
+		asdfx.add(2);
+		asdfx.add(2);
+		asdfx.add(2);
+		
+		asdfy.add(1);
+		asdfy.add(2);
+		asdfy.add(3);
+		asdfy.add(4);
+		asdfy.add(5);
+		asdfy.add(1);
+		asdfy.add(2);
+		asdfy.add(3);
+		asdfy.add(4);
+		asdfy.add(5);
+		
+		
+		double asdfasdfasd = Util.moment_continuous(asdfx, asdfy, 2, 0);	
+		System.out.println("memememmeme");
+		*/
+
+		double M00 = Util.moment_continuous(segmentation_full_x, segmentation_full_y, 0, 0); // this is the area
+		double M10 = Util.moment_continuous(segmentation_full_x, segmentation_full_y, 1, 0); // M10/M00 is xhat		
+		double M01 = Util.moment_continuous(segmentation_full_x, segmentation_full_y, 0, 1); // M01/M00 is yhat
+		double M11 = Util.moment_continuous(segmentation_full_x, segmentation_full_y, 1, 1);
+		double M20 = Util.moment_continuous(segmentation_full_x, segmentation_full_y, 2, 0);
+		double M02 = Util.moment_continuous(segmentation_full_x, segmentation_full_y, 0, 2);
+
+		double xhat = M10/M00;
+		double yhat = M01/M00;
+
+		
+		double m20 = M20/M00 - xhat*xhat;
+		double m02 = M02/M00 - yhat*yhat;
+		double m11 = M11/M00 - xhat*yhat;
+		
+		double lambda1 = (m20+m02)/2 + Math.sqrt(4*m11*m11 + (m20-m02)*(m20-m02))/2;
+		double lambda2 = (m20+m02)/2 - Math.sqrt(4*m11*m11 + (m20-m02)*(m20-m02))/2;		
+		double eccentricity = Math.sqrt(1-lambda2/lambda1);
+		
+		
+		/*
+		System.out.println("xhat="+xhat);
+		System.out.println("yhat="+yhat);
+		System.out.println("M00="+M00);
+		System.out.println("M10="+M10);
+		System.out.println("M01="+M01);		
+		System.out.println("M20="+M20);
+		System.out.println("M02="+M02);		
+		System.out.println("lambda1="+lambda1+",lambda2="+lambda2);
+		System.out.println("eccentricity="+eccentricity);
+
+		System.out.println("*****");
+		*/
+
+		// store in field
+		double [] segmentation_level_features = {meanVal_Inside, meanVal_Outside,
+												meanIn_minus_meanOut,meanIn_divided_meanOut,
+												//skewness_Inside,skewness_Outside,kurtosis_Inside,kurtosis_Outside,
+												area,eccentricity
+												};
 		for (int i=0;i<segmentation_level_features.length;i++) {
-			feature_vector[feature_offset+i] = segmentation_level_features[i];
+			feature_vector.add(segmentation_level_features[i]);
 		}
+		
+		
 		
 	}
 	
-	private int mean_pixel_intensity(Vector<Integer> x_vector, Vector<Integer> y_vector, ImageProcessor I) {		
-		int sum=0;
-		for (int i=0;i<x_vector.size();i++) {
-			int x = x_vector.get(i);
-			int y = y_vector.get(i);
-			sum+=I.getPixel(x, y);
-		}		
-		return sum/x_vector.size();
-	}
 	
 	
-	public static int[] get_image_level_features(ImageProcessor I) {
+	public static double[] get_image_level_features(ImageProcessor I) {
 		// store pixel values in int[] array
 		int dimx = I.getWidth();
 		int dimy = I.getHeight();
@@ -249,11 +388,35 @@ public class ProposedSegmentation implements Serializable {
 
 	   // get 50%, 90%, 99% percentile pixel intensities
 	   int prc50 = pixel_values[(int) (0.5 * dimx*dimy)];
+	   //int prc75 = pixel_values[(int) (0.75 * dimx*dimy)];	   
 	   int prc90 = pixel_values[(int) (0.9 * dimx*dimy)];
+	   //int prc95 = pixel_values[(int) (0.95 * dimx*dimy)];	   	   
 	   int prc99 = pixel_values[(int) (0.99 * dimx*dimy)];
-	   
+	   //int prc999 = pixel_values[(int) (0.999 * dimx*dimy)];
+
+	   // calculate skewness
+	   double mean = 0;
+	   for (int i=0;i<pixel_values.length;i++) {
+		   mean += pixel_values[i];
+	   }
+	   mean = mean/pixel_values.length;
+	   double variance=0;
+	   for (int i=0;i<pixel_values.length;i++) {
+		   variance += (pixel_values[i]-mean) * (pixel_values[i]-mean);
+	   }
+	   variance = variance / pixel_values.length;
+	   double skewness = 3*(mean-prc50)/Math.sqrt(variance);
+
+	   // calculate kurtosis
+	   double m4=0;
+	   for (int i=0;i<pixel_values.length;i++) {
+		   m4 += (pixel_values[i]-mean) * (pixel_values[i]-mean) * (pixel_values[i]-mean) * (pixel_values[i]-mean);
+	   }
+	   m4 = m4/pixel_values.length;
+	   double kurtosis = m4/(variance*variance) - 3;
+
 	   // return
-	   int rn[] = {prc50, prc90, prc99};
+	   double rn[] = {prc50, prc90, prc99, prc90/prc50, prc99/prc50};
 	   return rn;
 	}
 	
