@@ -26,7 +26,8 @@ public class SvmBackend {
 		parameters.nu = 0.5;
 		parameters.C = 100;
 		parameters.svm_type = svm_parameter.C_SVC;
-		parameters.kernel_type = svm_parameter.LINEAR;       
+		//parameters.kernel_type = svm_parameter.RBF;       
+		parameters.kernel_type = svm_parameter.LINEAR;
 		parameters.cache_size = 20000;
 		parameters.eps = 0.001;   
 	}
@@ -148,6 +149,8 @@ public class SvmBackend {
 			}
 						
 			// draw previous segmentations (overwriting classifications)
+			// TODO: add this back in, removed for debugging benchmarking
+			/*
 			for (int j=0;j<training_data.size();j++) {
 				int watershed_index = training_data.getWatershedIndex(j);
 				int label = training_data.getLabel(j);
@@ -159,6 +162,7 @@ public class SvmBackend {
 					drawSegmentations_full(watershed_index, full_segmentation.getProcessor(), proposed_segmentations[watershed_index]);
 				}
 			}
+			*/
 			
 			// save images
 	        IJ.save(perimeter_segmentation,working_directory+"/visualize_final_segmentations/"+input_images[i]);
@@ -208,7 +212,18 @@ public class SvmBackend {
 		parameters.gamma = gamma;
 		parameters.nu = nu;
 		parameters.C = C;
-		parameters.eps = eps;   
+		parameters.eps = eps;
+		
+		double [] weight = new double[2];
+		weight[0] = 1;
+		weight[1] = 1;
+		int [] weight_label = new int[2];
+		weight_label[0] = 0;
+		weight_label[1] = 1;
+
+		parameters.nr_weight=2;
+		parameters.weight = weight;
+		parameters.weight_label=weight_label;
 	}
 	
 	

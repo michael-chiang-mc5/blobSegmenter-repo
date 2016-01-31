@@ -216,9 +216,9 @@ public class ProposedSegmentation implements Serializable {
 	
 	public void draw_segmentation_mask(ImageProcessor output, int value) {
 		output.setValue(value);
-		for (int i=0;i<segmentation_perimeter_x.size();i++) {
-			int x = segmentation_perimeter_x.get(i);
-			int y = segmentation_perimeter_y.get(i);
+		for (int i=0;i<segmentation_full_x.size();i++) {
+			int x = segmentation_full_x.get(i);
+			int y = segmentation_full_y.get(i);
 			output.drawPixel(x, y);
 		}
 	}

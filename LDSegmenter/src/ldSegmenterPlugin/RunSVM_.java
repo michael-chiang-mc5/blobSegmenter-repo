@@ -118,11 +118,11 @@ public class RunSVM_ extends PlugInFrame implements ActionListener {
 				
 				// get svm parameters
 				GenericDialog gd = new GenericDialog("Svm parameters");
-				gd.addNumericField("probability: ", probability, 2);
+				gd.addNumericField("probability: ", probability, 0);
 				gd.addNumericField("gamma: ", gamma, 2);
 				gd.addNumericField("nu: ", nu, 2);
 				gd.addNumericField("C: ", C, 2);
-				gd.addNumericField("eps: ", eps, 2);				
+				gd.addNumericField("eps: ", eps, 3);				
 				gd.showDialog();
 				if (gd.wasCanceled()) return;
 				probability = (int)gd.getNextNumber();

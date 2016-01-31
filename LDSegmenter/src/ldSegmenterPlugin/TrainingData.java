@@ -58,5 +58,4 @@ public class TrainingData implements Serializable {
 	}
 	
 	
-	
 }

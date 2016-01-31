@@ -12,11 +12,11 @@ public class AnnotationBackend {
 	private String working_directory;
 	private String name;
 	
-	private ProposedSegmentation[] proposed_segmentations;
+	public ProposedSegmentation[] proposed_segmentations;
 	private ImageProcessor input_image;
-	private ImageProcessor watershed_image;
+	public ImageProcessor watershed_image;
 	private ImagePlus annotation_interface;
-	private TrainingData training_data;
+	public TrainingData training_data;
 
 	
 	public void set_working_directory(String working_directory) {
@@ -112,6 +112,11 @@ public class AnnotationBackend {
 		
 		// add training data
 		training_data.add(proposed_segmentations[watershed_index], label);		
+	}
+	
+	void clearTrainingData() {
+		training_data = null;
+		training_data = new TrainingData();
 	}
 	
 	void removeTrainingData(int x,int y) {
